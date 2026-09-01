@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production & Build Artifacts
+dist/
+dist-release/
+dist-ssr/
+*.local
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.log
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
