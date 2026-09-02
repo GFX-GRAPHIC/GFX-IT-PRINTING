@@ -373,35 +373,57 @@ $ErrorActionPreference = 'Stop'
 $result = @{ success = $false; message = ''; count = 0 }
 
 try {
-    # 1. Connect to active CorelDRAW COM instance
+    # 1. Connect to active CorelDRAW COM instance (Supporting Corel X7 to 2024 seamlessly)
     $corel = $null
-    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-    if ($curVer) {
-        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {}
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c) {
+                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                    $corel = $c
+                    break
+                } elseif (-not $corel) {
+                    $corel = $c
+                }
+            }
+        } catch {}
+    }
+
+    if (-not $corel) {
+        $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+        if ($curVer) {
+            try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {}
+        }
     }
     if (-not $corel) {
-        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
-    }
-    if (-not $corel -and $curVer) {
-        try { $corel = New-Object -ComObject $curVer } catch {}
-    }
-    if (-not $corel) {
-        try { $corel = New-Object -ComObject "CorelDRAW.Application" } catch {}
+        try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {}
     }
 
     if (-not $corel) {
-        throw "Tidak dapat terhubung ke CorelDRAW. Pastikan file pola jersey sedang terbuka di CorelDRAW."
+        throw "Tidak dapat terhubung ke CorelDRAW. Pastikan CorelDRAW sedang dibuka."
     }
 
-    $doc = $corel.ActiveDocument
+    $doc = $null
+    try { $doc = $corel.ActiveDocument } catch {}
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try {
+            $doc = $corel.Documents.Item(1)
+            $doc.Activate()
+        } catch {}
+    }
+
     if (-not $doc) {
-        throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW."
+        throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW. Silakan buka file pola di CorelDRAW."
     }
 
     $doc.Unit = 3 # cdrCentimeter
 
-    $selection = $corel.ActiveSelection
-    if ($selection.Shapes.Count -eq 0) {
+    $selection = $null
+    try { $selection = $corel.ActiveSelection } catch {}
+    if (-not $selection -or $selection.Shapes.Count -eq 0) {
+        try { $selection = $doc.Selection } catch {}
+    }
+    if (-not $selection -or $selection.Shapes.Count -eq 0) {
         throw "Silakan pilih (seleksi/blok) 1 grup master pola jersey di CorelDRAW terlebih dahulu."
     }
 
@@ -707,23 +729,43 @@ $result = @{ success = $false; message = ''; count = 0 }
 
 try {
     $corel = $null
-    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-    if ($curVer) {
-        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {
-            try { $corel = New-Object -ComObject $curVer } catch {}
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c) {
+                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                    $corel = $c
+                    break
+                } elseif (-not $corel) {
+                    $corel = $c
+                }
+            }
+        } catch {}
+    }
+
+    if (-not $corel) {
+        $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+        if ($curVer) {
+            try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {}
         }
     }
     if (-not $corel) {
-        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {
-            try { $corel = New-Object -ComObject "CorelDRAW.Application" } catch {}
-        }
+        try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {}
     }
 
     if (-not $corel) {
         throw "CorelDRAW tidak terdeteksi. Silakan buka CorelDRAW terlebih dahulu."
     }
 
-    $doc = $corel.ActiveDocument
+    $doc = $null
+    try { $doc = $corel.ActiveDocument } catch {}
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try {
+            $doc = $corel.Documents.Item(1)
+            $doc.Activate()
+        } catch {}
+    }
+
     if (-not $doc) {
         throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW."
     }
@@ -888,27 +930,39 @@ try {
 } catch {}
 
 $corel = $null
-$curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-if ($curVer) { try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {} }
-if (-not $corel) { try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {} }
+for ($v = 26; $v -ge 14; $v--) {
+    try {
+        $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+        if ($c) {
+            if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                $corel = $c
+                break
+            } elseif (-not $corel) {
+                $corel = $c
+            }
+        }
+    } catch {}
+}
 if (-not $corel) {
-  for ($v = 25; $v -ge 14; $v--) {
-    try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v"); if ($corel) { break } } catch {}
-  }
+    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+    if ($curVer) { try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {} }
 }
-if (-not $corel -and $curVer) {
-  try { $corel = New-Object -ComObject $curVer } catch {}
-}
-if (-not $corel) {
-  try { $corel = New-Object -ComObject "CorelDRAW.Application" } catch {}
-}
+if (-not $corel) { try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {} }
 
 if (-not $corel) {
   @{ success = $false; message = "CorelDRAW tidak terdeteksi. Silakan buka file pola di CorelDRAW." } | ConvertTo-Json -Compress
   exit
 }
 
-$doc = $corel.ActiveDocument
+$doc = $null
+try { $doc = $corel.ActiveDocument } catch {}
+if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+    try {
+        $doc = $corel.Documents.Item(1)
+        $doc.Activate()
+    } catch {}
+}
+
 if (-not $doc) {
   @{ success = $false; message = "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW." } | ConvertTo-Json -Compress
   exit
@@ -1006,27 +1060,39 @@ ipcMain.handle('corel:export-next-selection', async (_event, payload) => {
     const ps = `
       $ErrorActionPreference = 'SilentlyContinue'
       $corel = $null
-      $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-      if ($curVer) { try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {} }
-      if (-not $corel) { try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {} }
+      for ($v = 26; $v -ge 14; $v--) {
+          try {
+              $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+              if ($c) {
+                  if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                      $corel = $c
+                      break
+                  } elseif (-not $corel) {
+                      $corel = $c
+                  }
+              }
+          } catch {}
+      }
       if (-not $corel) {
-        for ($v = 25; $v -ge 14; $v--) {
-          try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v"); if ($corel) { break } } catch {}
-        }
+          $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+          if ($curVer) { try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {} }
       }
-      if (-not $corel -and $curVer) {
-        try { $corel = New-Object -ComObject $curVer } catch {}
-      }
-      if (-not $corel) {
-        try { $corel = New-Object -ComObject "CorelDRAW.Application" } catch {}
-      }
+      if (-not $corel) { try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {} }
 
       if (-not $corel) {
         @{ success = $false; message = "CorelDRAW tidak terdeteksi. Silakan buka CorelDRAW." } | ConvertTo-Json -Compress
         exit
       }
 
-      $doc = $corel.ActiveDocument
+      $doc = $null
+      try { $doc = $corel.ActiveDocument } catch {}
+      if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+          try {
+              $doc = $corel.Documents.Item(1)
+              $doc.Activate()
+          } catch {}
+      }
+
       if (-not $doc) {
         @{ success = $false; message = "Tidak ada dokumen yang sedang terbuka di CorelDRAW." } | ConvertTo-Json -Compress
         exit
@@ -1114,29 +1180,51 @@ ipcMain.handle('corel:get-selection-info', async () => {
 $ErrorActionPreference = 'SilentlyContinue'
 $result = @{ success = $false; count = 0; widthCm = 0; heightCm = 0 }
 try {
-    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
     $corel = $null
-    if ($curVer) { try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {} }
-    if (-not $corel) { try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {} }
-    if (-not $corel) {
-        for ($v = 25; $v -ge 14; $v--) {
-            try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v"); if ($corel) { break } } catch {}
-        }
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c) {
+                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                    $corel = $c
+                    break
+                } elseif (-not $corel) {
+                    $corel = $c
+                }
+            }
+        } catch {}
     }
+    if (-not $corel) {
+        $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+        if ($curVer) { try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {} }
+    }
+    if (-not $corel) { try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {} }
     
-    if ($corel -and $corel.ActiveDocument) {
-        $doc = $corel.ActiveDocument
-        $doc.Unit = 3 # cdrCentimeter
-        $sel = $corel.ActiveSelection
-        if ($sel -and $sel.Shapes.Count -gt 0) {
-            $w = [math]::Round([double]$sel.SizeWidth, 3)
-            $h = [math]::Round([double]$sel.SizeHeight, 3)
-            $result.success = $true
-            $result.count = $sel.Shapes.Count
-            $result.widthCm = $w
-            $result.heightCm = $h
-        } else {
-            $result.success = $true
+    if ($corel) {
+        $doc = $null
+        try { $doc = $corel.ActiveDocument } catch {}
+        if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+            try { $doc = $corel.Documents.Item(1); $doc.Activate() } catch {}
+        }
+
+        if ($doc) {
+            $doc.Unit = 3 # cdrCentimeter
+            $sel = $null
+            try { $sel = $corel.ActiveSelection } catch {}
+            if (-not $sel -or $sel.Shapes.Count -eq 0) {
+                try { $sel = $doc.Selection } catch {}
+            }
+
+            if ($sel -and $sel.Shapes.Count -gt 0) {
+                $w = [math]::Round([double]$sel.SizeWidth, 3)
+                $h = [math]::Round([double]$sel.SizeHeight, 3)
+                $result.success = $true
+                $result.count = $sel.Shapes.Count
+                $result.widthCm = $w
+                $result.heightCm = $h
+            } else {
+                $result.success = $true
+            }
         }
     }
 } catch {}
@@ -1176,7 +1264,7 @@ ipcMain.handle('corel:open-numerator-tool', async () => {
   return { success: true };
 });
 
-// Execute Numerator in CorelDRAW (100% Internal Direct COM Script)
+// Execute Numerator in CorelDRAW (Supporting CorelDRAW X7 up to 2024 seamlessly)
 ipcMain.handle('corel:execute-numerator', async (_event, payload) => {
   return new Promise((resolve) => {
     const {
@@ -1231,33 +1319,47 @@ try {
     $autoCurves = [bool]${autoCurves ? '$true' : '$false'}
     $doubleNumber = [bool]${doubleNumber ? '$true' : '$false'}
 
-    # 1. Connect to active CorelDRAW COM instance (Matching Jersey Layout 100%)
+    # 1. Connect to active CorelDRAW COM instance (Supporting Corel X7 to 2024 seamlessly)
     $corel = $null
-    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-    if ($curVer) {
-        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {}
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c) {
+                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                    $corel = $c
+                    break
+                } elseif (-not $corel) {
+                    $corel = $c
+                }
+            }
+        } catch {}
     }
+
     if (-not $corel) {
-        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
-    }
-    if (-not $corel -and $curVer) {
-        try { $corel = New-Object -ComObject $curVer } catch {}
-    }
-    if (-not $corel) {
-        try { $corel = New-Object -ComObject "CorelDRAW.Application" } catch {}
-    }
-    if (-not $corel) {
-        for ($v = 26; $v -ge 14; $v--) {
-            try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v"); if ($corel) { break } } catch {}
+        $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+        if ($curVer) {
+            try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {}
         }
     }
+    if (-not $corel) {
+        try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {}
+    }
+
     if (-not $corel) {
         throw "Tidak dapat terhubung ke CorelDRAW. Pastikan CorelDRAW sedang terbuka."
     }
 
-    $doc = $corel.ActiveDocument
+    $doc = $null
+    try { $doc = $corel.ActiveDocument } catch {}
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try {
+            $doc = $corel.Documents.Item(1)
+            $doc.Activate()
+        } catch {}
+    }
+
     if (-not $doc) {
-        throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW."
+        throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW. Silakan buka file desain di CorelDRAW."
     }
     $doc.Unit = 3 # cdrCentimeter
 
@@ -1324,7 +1426,11 @@ try {
 
     $doc.BeginCommandGroup("GFX IT PRINTING Numerator Machine")
 
-    $sel = $corel.ActiveSelection
+    $sel = $null
+    try { $sel = $corel.ActiveSelection } catch {}
+    if (-not $sel -or $sel.Shapes.Count -eq 0) {
+        try { $sel = $doc.Selection } catch {}
+    }
 
     if ($mode -eq 'inplace' -or ($sel -and $sel.Shapes.Count -gt 1 -and $mode -ne 'grid')) {
         $shapeList = @()
