@@ -1,8 +1,8 @@
 const { app, BrowserWindow, ipcMain, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const crypto = require('crypto');
-const { exec } = require('child_process');
 
 const MASTER_SECRET_SALT = 'GFX_IT_PRINTING_2026_MASTER_SECRET_9837429184_SECURITY';
 
@@ -23,7 +23,8 @@ function readKeygenData() {
     settings: {
       adminPhone: '085163594245',
       adminName: 'GFX IT PRINTING Support',
-      appName: 'GFX IT PRINTING'
+      appName: 'GFX IT PRINTING',
+      githubToken: ''
     },
     history: [],
     blocked: []
@@ -63,6 +64,80 @@ function getRootRegistryFilePath() {
   return path.join(__dirname, '../license-registry.json');
 }
 
+function syncToGitHubApi(githubToken, registryObj) {
+  if (!githubToken || !githubToken.trim()) {
+    return Promise.resolve({ success: false, message: 'GitHub Token belum diisi di tab Pengaturan.' });
+  }
+
+  const owner = 'GFX-GRAPHIC';
+  const repo = 'GFX-IT-PRINTING';
+  const filePath = 'license-registry.json';
+  const contentBase64 = Buffer.from(JSON.stringify(registryObj, null, 2)).toString('base64');
+
+  return new Promise((resolve) => {
+    const getOptions = {
+      hostname: 'api.github.com',
+      path: `/repos/${owner}/${repo}/contents/${filePath}`,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'GFX-License-Manager',
+        'Authorization': `Bearer ${githubToken.trim()}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    };
+
+    const getReq = https.request(getOptions, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        let currentSha = null;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.sha) currentSha = parsed.sha;
+        } catch {}
+
+        const putPayload = JSON.stringify({
+          message: 'chore: Update system telemetry manifest',
+          content: contentBase64,
+          ...(currentSha ? { sha: currentSha } : {})
+        });
+
+        const putOptions = {
+          hostname: 'api.github.com',
+          path: `/repos/${owner}/${repo}/contents/${filePath}`,
+          method: 'PUT',
+          headers: {
+            'User-Agent': 'GFX-License-Manager',
+            'Authorization': `Bearer ${githubToken.trim()}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(putPayload)
+          }
+        };
+
+        const putReq = https.request(putOptions, (putRes) => {
+          let putData = '';
+          putRes.on('data', chunk => { putData += chunk; });
+          putRes.on('end', () => {
+            if (putRes.statusCode >= 200 && putRes.statusCode < 300) {
+              resolve({ success: true, message: '✅ Berhasil tersinkronisasi otomatis ke GitHub Cloud!' });
+            } else {
+              resolve({ success: false, message: `GitHub API (${putRes.statusCode}): Periksa izin Token Anda.` });
+            }
+          });
+        });
+
+        putReq.on('error', (err) => resolve({ success: false, message: err.message }));
+        putReq.write(putPayload);
+        putReq.end();
+      });
+    });
+
+    getReq.on('error', (err) => resolve({ success: false, message: err.message }));
+    getReq.end();
+  });
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 920,
@@ -71,7 +146,7 @@ function createWindow() {
     minHeight: 640,
     frame: false,
     backgroundColor: '#0f172a',
-    title: 'GFX IT PRINTING — License Manager & Remote Control Dashboard',
+    title: 'GFX IT PRINTING — License Master & Remote Control Dashboard',
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
@@ -218,7 +293,7 @@ ipcMain.handle('delete-keygen-history-item', (_event, id) => {
 });
 
 // REMOTE KILLSWITCH: Block HWID
-ipcMain.handle('block-hwid', (_event, payload) => {
+ipcMain.handle('block-hwid', async (_event, payload) => {
   const { hwid, customer, reason } = payload || {};
   if (!hwid) return { success: false, message: 'Hardware ID kosong' };
 
@@ -237,52 +312,80 @@ ipcMain.handle('block-hwid', (_event, payload) => {
     saveKeygenData(data);
   }
 
-  // Update local root license-registry.json
+  const registryObj = {
+    version: "1.0.0",
+    updated_at: new Date().toISOString().split('T')[0],
+    blocked_hwids: data.blocked.map(b => ({
+      hwid: b.hwid,
+      customer: b.customer,
+      reason: b.reason,
+      blocked_at: b.blockedAt
+    })),
+    broadcast_announcement: { enabled: false, title: "", message: "" }
+  };
+
+  // Update local file
   try {
-    const regFile = getRootRegistryFilePath();
-    const registryObj = {
-      version: "1.0.0",
-      updated_at: new Date().toISOString().split('T')[0],
-      blocked_hwids: data.blocked.map(b => ({
-        hwid: b.hwid,
-        customer: b.customer,
-        reason: b.reason,
-        blocked_at: b.blockedAt
-      })),
-      broadcast_announcement: { enabled: false, title: "", message: "" }
-    };
-    fs.writeFileSync(regFile, JSON.stringify(registryObj, null, 2), 'utf-8');
+    fs.writeFileSync(getRootRegistryFilePath(), JSON.stringify(registryObj, null, 2), 'utf-8');
   } catch {}
 
-  return { success: true, blocked: data.blocked };
+  // Auto-sync via GitHub API if token configured
+  let syncResult = null;
+  if (data.settings?.githubToken) {
+    syncResult = await syncToGitHubApi(data.settings.githubToken, registryObj);
+  }
+
+  return { success: true, blocked: data.blocked, syncResult };
 });
 
 // REMOTE KILLSWITCH: Unblock HWID
-ipcMain.handle('unblock-hwid', (_event, hwid) => {
+ipcMain.handle('unblock-hwid', async (_event, hwid) => {
   if (!hwid) return { success: false };
   const data = readKeygenData();
   const cleanHwid = hwid.trim().toUpperCase();
   data.blocked = data.blocked.filter(b => b.hwid !== cleanHwid);
   saveKeygenData(data);
 
-  // Update local root license-registry.json
+  const registryObj = {
+    version: "1.0.0",
+    updated_at: new Date().toISOString().split('T')[0],
+    blocked_hwids: data.blocked.map(b => ({
+      hwid: b.hwid,
+      customer: b.customer,
+      reason: b.reason,
+      blocked_at: b.blockedAt
+    })),
+    broadcast_announcement: { enabled: false, title: "", message: "" }
+  };
+
   try {
-    const regFile = getRootRegistryFilePath();
-    const registryObj = {
-      version: "1.0.0",
-      updated_at: new Date().toISOString().split('T')[0],
-      blocked_hwids: data.blocked.map(b => ({
-        hwid: b.hwid,
-        customer: b.customer,
-        reason: b.reason,
-        blocked_at: b.blockedAt
-      })),
-      broadcast_announcement: { enabled: false, title: "", message: "" }
-    };
-    fs.writeFileSync(regFile, JSON.stringify(registryObj, null, 2), 'utf-8');
+    fs.writeFileSync(getRootRegistryFilePath(), JSON.stringify(registryObj, null, 2), 'utf-8');
   } catch {}
 
-  return { success: true, blocked: data.blocked };
+  let syncResult = null;
+  if (data.settings?.githubToken) {
+    syncResult = await syncToGitHubApi(data.settings.githubToken, registryObj);
+  }
+
+  return { success: true, blocked: data.blocked, syncResult };
+});
+
+// Manual Sync Button
+ipcMain.handle('manual-sync-github', async () => {
+  const data = readKeygenData();
+  const registryObj = {
+    version: "1.0.0",
+    updated_at: new Date().toISOString().split('T')[0],
+    blocked_hwids: data.blocked.map(b => ({
+      hwid: b.hwid,
+      customer: b.customer,
+      reason: b.reason,
+      blocked_at: b.blockedAt
+    })),
+    broadcast_announcement: { enabled: false, title: "", message: "" }
+  };
+
+  return await syncToGitHubApi(data.settings?.githubToken, registryObj);
 });
 
 // Get formatted JSON for GitHub Sync

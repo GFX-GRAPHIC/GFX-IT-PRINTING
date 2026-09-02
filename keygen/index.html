@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GFX IT PRINTING — License Manager & Remote Control Dashboard</title>
+  <title>GFX IT PRINTING — License Master & Remote Control Dashboard</title>
   <style>
     * {
       box-sizing: border-box;
@@ -209,7 +209,7 @@
       margin-bottom: 5px;
     }
 
-    input[type="text"], input[type="number"], select, textarea {
+    input[type="text"], input[type="password"], input[type="number"], select, textarea {
       width: 100%;
       background: #0b1120;
       border: 1px solid #334155;
@@ -275,43 +275,17 @@
       transition: all 0.15s;
     }
 
-    .btn-primary {
-      background: #0284c7;
-      color: #fff;
-    }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary:hover { background: #0369a1; }
 
-    .btn-primary:hover {
-      background: #0369a1;
-    }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-success:hover { background: #047857; }
 
-    .btn-success {
-      background: #059669;
-      color: #fff;
-    }
+    .btn-danger { background: #e11d48; color: #fff; }
+    .btn-danger:hover { background: #be123c; }
 
-    .btn-success:hover {
-      background: #047857;
-    }
-
-    .btn-danger {
-      background: #e11d48;
-      color: #fff;
-    }
-
-    .btn-danger:hover {
-      background: #be123c;
-    }
-
-    .btn-secondary {
-      background: #1e293b;
-      color: #cbd5e1;
-      border: 1px solid #334155;
-    }
-
-    .btn-secondary:hover {
-      background: #334155;
-      color: #fff;
-    }
+    .btn-secondary { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+    .btn-secondary:hover { background: #334155; color: #fff; }
 
     /* Output Key Result Box */
     .result-box {
@@ -537,7 +511,7 @@
           <span>🛡️ Remote Kill-Switch (Kunci / Cabut Lisensi Jarak Jauh)</span>
         </div>
         <p style="font-size: 11.5px; color: #94a3b8; margin-bottom: 14px; line-height: 1.5;">
-          Fitur ini memungkinkan Anda menonaktifkan aplikasi di komputer pelanggan dari jarak jauh jika terjadi pelanggaran, penunggakan sewa, atau pembatalan lisensi. Begitu HWID diblokir, aplikasi mereka akan otomatis terkunci.
+          Fitur ini memungkinkan Anda menonaktifkan aplikasi di komputer pelanggan dari jarak jauh jika terjadi pelanggaran, penunggakan sewa, atau pembatalan lisensi. Begitu HWID diblokir, aplikasi mereka akan otomatis terkunci saat membuka software.
         </p>
 
         <!-- Form Tambah Blokir Cepat -->
@@ -553,7 +527,10 @@
 
         <div class="card-header" style="margin-top: 10px;">
           <span>Daftar HWID yang Sedang Dinonaktifkan:</span>
-          <button class="btn btn-secondary" style="font-size: 10.5px;" onclick="copyKillswitchJson()">📋 Salin JSON Registry untuk GitHub</button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-primary" style="font-size: 10.5px;" onclick="manualSyncGitHub()">⚡ Sinkronkan ke GitHub Cloud</button>
+            <button class="btn btn-secondary" style="font-size: 10.5px;" onclick="copyKillswitchJson()">📋 Salin JSON</button>
+          </div>
         </div>
 
         <div class="table-container" style="max-height: 250px;">
@@ -600,7 +577,15 @@
           <input type="text" id="settingAppName" placeholder="GFX IT PRINTING" />
         </div>
 
-        <button class="btn btn-primary" onclick="saveSettings()">💾 Simpan Pengaturan Kontak</button>
+        <div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #1f2937;">
+          <label>GitHub Personal Access Token (Untuk Sinkronisasi Otomatis Killswitch)</label>
+          <input type="password" id="settingGithubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+          <span style="font-size: 10px; color: #38bdf8; margin-top: 3px; display: block;">
+            💡 Masukkan GitHub Token (scope: repo) agar setiap klik "Blokir" otomatis terupdate ke cloud GitHub tanpa buka browser!
+          </span>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Simpan Pengaturan Kontak & Cloud</button>
       </div>
     </div>
   </div>
@@ -663,6 +648,7 @@
         document.getElementById('settingPhone').value = data.settings.adminPhone || '085163594245';
         document.getElementById('settingName').value = data.settings.adminName || 'GFX IT PRINTING Support';
         document.getElementById('settingAppName').value = data.settings.appName || 'GFX IT PRINTING';
+        document.getElementById('settingGithubToken').value = data.settings.githubToken || '';
         document.getElementById('supportPhoneTop').innerText = data.settings.adminPhone || '085163594245';
 
         fullHistoryData = data.history || [];
@@ -797,6 +783,16 @@
       }
     }
 
+    async function manualSyncGitHub() {
+      showToast('Sedang menyinkronkan ke GitHub Cloud...');
+      const res = await ipcRenderer.invoke('manual-sync-github');
+      if (res.success) {
+        showToast(res.message || 'Berhasil tersinkron ke GitHub!');
+      } else {
+        alert(res.message || 'Gagal sinkron ke GitHub.');
+      }
+    }
+
     async function submitBlockHwid() {
       const hwid = document.getElementById('blockInputHwid').value;
       const customer = document.getElementById('blockInputCustomer').value;
@@ -807,27 +803,39 @@
         return;
       }
 
-      await ipcRenderer.invoke('block-hwid', { hwid, customer, reason });
+      const res = await ipcRenderer.invoke('block-hwid', { hwid, customer, reason });
       document.getElementById('blockInputHwid').value = '';
       document.getElementById('blockInputCustomer').value = '';
       document.getElementById('blockInputReason').value = '';
-      showToast(`HWID ${hwid} berhasil diblokir!`);
+      if (res.syncResult?.success) {
+        showToast(`HWID ${hwid} diblokir & disinkron ke Cloud!`);
+      } else {
+        showToast(`HWID ${hwid} berhasil diblokir secara lokal!`);
+      }
       loadData();
     }
 
     async function quickBlockHwid(hwid, customer) {
       const reason = prompt(`Masukkan alasan pemblokiran lisensi untuk toko "${customer}" (${hwid}):`, 'Penangguhan lisensi oleh Administrator.');
       if (reason !== null) {
-        await ipcRenderer.invoke('block-hwid', { hwid, customer, reason });
-        showToast(`Lisensi ${customer} berhasil dinonaktifkan!`);
+        const res = await ipcRenderer.invoke('block-hwid', { hwid, customer, reason });
+        if (res.syncResult?.success) {
+          showToast(`Lisensi ${customer} dinonaktifkan & disinkron ke Cloud!`);
+        } else {
+          showToast(`Lisensi ${customer} dinonaktifkan!`);
+        }
         loadData();
       }
     }
 
     async function unblockHwid(hwid) {
       if (confirm(`Yakin ingin membuka blokir untuk ${hwid}? Komputer tersebut akan dapat menggunakan lisensi kembali.`)) {
-        await ipcRenderer.invoke('unblock-hwid', hwid);
-        showToast(`Blokir untuk ${hwid} telah dicabut!`);
+        const res = await ipcRenderer.invoke('unblock-hwid', hwid);
+        if (res.syncResult?.success) {
+          showToast(`Blokir ${hwid} dicabut & disinkron ke Cloud!`);
+        } else {
+          showToast(`Blokir untuk ${hwid} telah dicabut!`);
+        }
         loadData();
       }
     }
@@ -835,16 +843,17 @@
     async function copyKillswitchJson() {
       const jsonStr = await ipcRenderer.invoke('get-killswitch-json');
       clipboard.writeText(jsonStr);
-      showToast('JSON Killswitch disalin! Tempelkan ke file license-registry.json di GitHub.');
+      showToast('JSON Killswitch disalin!');
     }
 
     async function saveSettings() {
       const adminPhone = document.getElementById('settingPhone').value;
       const adminName = document.getElementById('settingName').value;
       const appName = document.getElementById('settingAppName').value;
+      const githubToken = document.getElementById('settingGithubToken').value;
 
-      await ipcRenderer.invoke('save-keygen-settings', { adminPhone, adminName, appName });
-      showToast('Pengaturan kontak berhasil disimpan!');
+      await ipcRenderer.invoke('save-keygen-settings', { adminPhone, adminName, appName, githubToken });
+      showToast('Pengaturan kontak & GitHub Token berhasil disimpan!');
       loadData();
     }
 
