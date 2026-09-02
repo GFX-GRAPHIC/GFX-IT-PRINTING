@@ -418,12 +418,28 @@ try {
 
     $doc.Unit = 3 # cdrCentimeter
 
+    function Get-RangeCount($r) {
+        if (-not $r) { return 0 }
+        try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+        try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+        return 0
+    }
+
+    function Get-RangeItem($r, [int]$idx) {
+        if (-not $r) { return $null }
+        try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+        return $null
+    }
+
     $selection = $null
     try { $selection = $corel.ActiveSelection } catch {}
-    if (-not $selection -or $selection.Shapes.Count -eq 0) {
+    if (-not $selection -or (Get-RangeCount $selection) -eq 0) {
         try { $selection = $doc.Selection } catch {}
     }
-    if (-not $selection -or $selection.Shapes.Count -eq 0) {
+    $selCount = Get-RangeCount $selection
+    if ($selCount -eq 0) {
         throw "Silakan pilih (seleksi/blok) 1 grup master pola jersey di CorelDRAW terlebih dahulu."
     }
 
@@ -439,10 +455,10 @@ try {
 
     # Master shape
     $masterShape = $null
-    if ($selection.Shapes.Count -gt 1) {
+    if ($selCount -gt 1) {
         $masterShape = $selection.Group()
     } else {
-        $masterShape = $selection.Shapes.Item(1)
+        $masterShape = Get-RangeItem $selection 1
     }
 
     $width  = [double]$masterShape.SizeWidth
@@ -968,8 +984,28 @@ if (-not $doc) {
   exit
 }
 
-$sel = $corel.ActiveSelection
-if (-not $sel -or $sel.Shapes.Count -eq 0) {
+function Get-RangeCount($r) {
+    if (-not $r) { return 0 }
+    try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+    try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+    return 0
+}
+
+function Get-RangeItem($r, [int]$idx) {
+    if (-not $r) { return $null }
+    try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+    try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+    try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+    return $null
+}
+
+$sel = $null
+try { $sel = $corel.ActiveSelection } catch {}
+if (-not $sel -or (Get-RangeCount $sel) -eq 0) {
+  try { $sel = $doc.Selection } catch {}
+}
+$selCount = Get-RangeCount $sel
+if ($selCount -eq 0) {
   @{ success = $false; message = "Silakan seleksi (blok) seluruh grup pola baju di CorelDRAW." } | ConvertTo-Json -Compress
   exit
 }
@@ -983,8 +1019,9 @@ if (-not (Test-Path $outDir)) {
 }
 
 $shapesList = @()
-for ($s = 1; $s -le $sel.Shapes.Count; $s++) {
-  $shapesList += $sel.Shapes.Item($s)
+for ($s = 1; $s -le $selCount; $s++) {
+  $itShp = Get-RangeItem $sel $s
+  if ($itShp) { $shapesList += $itShp }
 }
 
 $exportedCount = 0
@@ -1107,15 +1144,38 @@ ipcMain.handle('corel:export-next-selection', async (_event, payload) => {
         $idList = @($passedIds.Split(',') | Where-Object { $_ -match '^\\d+$' } | ForEach-Object { [int]$_ })
       }
 
+      function Get-RangeCount($r) {
+          if (-not $r) { return 0 }
+          try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+          try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+          return 0
+      }
+
+      function Get-RangeItem($r, [int]$idx) {
+          if (-not $r) { return $null }
+          try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+          try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+          try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+          return $null
+      }
+
       if ($reset -or $idList.Count -eq 0) {
-        $sel = $corel.ActiveSelection
-        if (-not $sel -or $sel.Shapes.Count -eq 0) {
+        $sel = $null
+        try { $sel = $corel.ActiveSelection } catch {}
+        if (-not $sel -or (Get-RangeCount $sel) -eq 0) {
+          try { $sel = $doc.Selection } catch {}
+        }
+        $selCount = Get-RangeCount $sel
+        if ($selCount -eq 0) {
           @{ success = $false; message = "Silakan seleksi (blok) seluruh grup pola baju di CorelDRAW terlebih dahulu." } | ConvertTo-Json -Compress
           exit
         }
         $idList = @()
-        for ($s = 1; $s -le $sel.Shapes.Count; $s++) {
-          $idList += [int]$sel.Shapes.Item($s).StaticID
+        for ($s = 1; $s -le $selCount; $s++) {
+          $itShp = Get-RangeItem $sel $s
+          if ($itShp) {
+            $idList += [int]$itShp.StaticID
+          }
         }
       }
 
@@ -1417,6 +1477,21 @@ try {
         return $c
     }
 
+    function Get-RangeCount($r) {
+        if (-not $r) { return 0 }
+        try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+        try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+        return 0
+    }
+
+    function Get-RangeItem($r, [int]$idx) {
+        if (-not $r) { return $null }
+        try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+        return $null
+    }
+
     $numList = @()
     for ($n = $start; $n -le $end; $n += $step) {
         $numList += $n
@@ -1428,19 +1503,22 @@ try {
 
     $sel = $null
     try { $sel = $corel.ActiveSelection } catch {}
-    if (-not $sel -or $sel.Shapes.Count -eq 0) {
+    if (-not $sel -or (Get-RangeCount $sel) -eq 0) {
         try { $sel = $doc.Selection } catch {}
     }
+    $selCount = Get-RangeCount $sel
 
-    if ($mode -eq 'inplace' -or ($sel -and $sel.Shapes.Count -gt 1 -and $mode -ne 'grid')) {
+    if ($mode -eq 'inplace' -or ($selCount -gt 1 -and $mode -ne 'grid')) {
         $shapeList = @()
-        for ($i = 1; $i -le $sel.Shapes.Count; $i++) {
-            $s = $sel.Shapes.Item($i)
-            $shapeList += [PSCustomObject]@{
-                Shape = $s
-                PosX = [double]$s.PositionX
-                PosY = [double]$s.PositionY
-                Height = [double]$s.SizeHeight
+        for ($i = 1; $i -le $selCount; $i++) {
+            $s = Get-RangeItem $sel $i
+            if ($s) {
+                $shapeList += [PSCustomObject]@{
+                    Shape = $s
+                    PosX = [double]$s.PositionX
+                    PosY = [double]$s.PositionY
+                    Height = [double]$s.SizeHeight
+                }
             }
         }
 
@@ -1562,11 +1640,14 @@ try {
         $result.totalPages = $totalPages
     }
     elseif ($mode -eq 'grid') {
-        if (-not $sel -or $sel.Shapes.Count -eq 0) {
+        if ($selCount -eq 0) {
             throw "Silakan seleksi (blok) 1 desain master voucher/tiket di CorelDRAW terlebih dahulu."
         }
 
-        $masterShape = if ($sel.Shapes.Count -gt 1) { $sel.Group() } else { $sel.Shapes.Item(1) }
+        $masterShape = if ($selCount -gt 1) { $sel.Group() } else { Get-RangeItem $sel 1 }
+        if (-not $masterShape) {
+            throw "Gagal membaca objek seleksi master di CorelDRAW."
+        }
 
         $w = [double]$masterShape.SizeWidth
         $h = [double]$masterShape.SizeHeight
