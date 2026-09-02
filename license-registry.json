@@ -4,7 +4,7 @@
   "blocked_hwids": [],
   "broadcast_announcement": {
     "enabled": false,
-    "title": "Pemberitahuan Sistem",
+    "title": "",
     "message": ""
   }
 }
