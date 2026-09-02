@@ -1,7 +1,14 @@
 {
   "version": "1.0.0",
   "updated_at": "2026-09-02",
-  "blocked_hwids": [],
+  "blocked_hwids": [
+    {
+      "hwid": "GFX-FC4E-6BB0-59A8",
+      "customer": "kerja prima",
+      "reason": "tidak bayar",
+      "blocked_at": "2026-09-02"
+    }
+  ],
   "broadcast_announcement": {
     "enabled": false,
     "title": "",
