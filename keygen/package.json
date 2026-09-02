@@ -1,0 +1,22 @@
+{
+  "name": "gfx-license-keygen",
+  "version": "1.0.0",
+  "description": "GFX IT PRINTING - Master License Keygen Generator",
+  "main": "main.cjs",
+  "author": "GFX IT PRINTING",
+  "license": "ISC",
+  "build": {
+    "appId": "com.gfx.licensekeygen",
+    "productName": "GFX License Keygen Generator",
+    "win": {
+      "target": "portable",
+      "icon": "../public/favicon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}.${ext}"
+    },
+    "directories": {
+      "output": "../dist-release"
+    }
+  }
+}

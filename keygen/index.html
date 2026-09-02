@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFX IT PRINTING — License Manager & Remote Control Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    }
+
+    body {
+      background: #0b1120;
+      color: #f1f5f9;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+
+    /* Windows Titlebar */
+    .titlebar {
+      height: 34px;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid #1e293b;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .titlebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 0.5px;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-btn {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .titlebar-btn:hover {
+      background: #1e293b;
+      color: #fff;
+    }
+
+    .titlebar-btn.close:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    /* App Layout */
+    .app-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Stats Bar */
+    .top-stats {
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .stats-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stat-badge {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .stat-badge b {
+      color: #38bdf8;
+      font-size: 12px;
+    }
+
+    .stat-badge.blocked b {
+      color: #f43f5e;
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      padding: 0 16px;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .nav-tab {
+      padding: 9px 16px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .nav-tab:hover {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .nav-tab.active {
+      color: #38bdf8;
+      border-bottom-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .nav-tab.danger.active {
+      color: #f43f5e;
+      border-bottom-color: #f43f5e;
+      background: rgba(244, 63, 94, 0.05);
+    }
+
+    /* Tab Content Area */
+    .tab-content {
+      flex: 1;
+      padding: 18px 20px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards & Containers */
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%;
+      background: #0b1120;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+      user-select: text;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #38bdf8;
+    }
+
+    .radio-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .radio-card {
+      background: #0b1120;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: all 0.15s;
+    }
+
+    .radio-card.active {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .radio-card-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .radio-card-desc {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: #0284c7;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #0369a1;
+    }
+
+    .btn-success {
+      background: #059669;
+      color: #fff;
+    }
+
+    .btn-success:hover {
+      background: #047857;
+    }
+
+    .btn-danger {
+      background: #e11d48;
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #be123c;
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+
+    .btn-secondary:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    /* Output Key Result Box */
+    .result-box {
+      background: #020617;
+      border: 1px solid #1e3a8a;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 14px;
+      display: none;
+    }
+
+    .result-box.show {
+      display: block;
+    }
+
+    .key-display {
+      font-family: monospace;
+      font-size: 12px;
+      color: #38bdf8;
+      background: #0b1120;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px dashed #0284c7;
+      user-select: text;
+      word-break: break-all;
+      margin: 8px 0;
+    }
+
+    /* History Table */
+    .table-container {
+      max-height: 440px;
+      overflow-y: auto;
+      border: 1px solid #1f2937;
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      text-align: left;
+    }
+
+    th {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 8px 12px;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+      position: sticky;
+      top: 0;
+    }
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #1e293b;
+      color: #e2e8f0;
+      user-select: text;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: 700;
+    }
+
+    .badge-lifetime { background: #064e3b; color: #6ee7b7; }
+    .badge-sub { background: #1e3a8a; color: #93c5fd; }
+    .badge-trial { background: #78350f; color: #fcd34d; }
+    .badge-blocked { background: #881337; color: #fda4af; }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #059669;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Windows Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-brand">
+      <span>🛡️</span>
+      <span>GFX IT PRINTING — License Master & Remote Control Dashboard</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" onclick="minimizeWindow()">─</button>
+      <button class="titlebar-btn close" onclick="closeWindow()">✕</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- Top Stats -->
+    <div class="top-stats">
+      <div class="stats-group">
+        <div class="stat-badge">Total Terbit: <b id="statTotal">0</b></div>
+        <div class="stat-badge">Beli Putus: <b id="statLifetime">0</b></div>
+        <div class="stat-badge">1 Tahun: <b id="statSub">0</b></div>
+        <div class="stat-badge">Trial: <b id="statTrial">0</b></div>
+        <div class="stat-badge blocked">Diblokir (Killswitch): <b id="statBlocked">0</b></div>
+      </div>
+      <div style="font-size: 11px; color: #64748b;">Support: <b id="supportPhoneTop" style="color: #cbd5e1;">0851-6359-4245</b></div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('tab-generate')">🎛️ Cetak Lisensi Baru</button>
+      <button class="nav-tab" onclick="switchTab('tab-history')">📋 Riwayat Lisensi Terbit</button>
+      <button class="nav-tab danger" onclick="switchTab('tab-killswitch')">🔴 Remote Kill-Switch & Blokir</button>
+      <button class="nav-tab" onclick="switchTab('tab-settings')">⚙️ Pengaturan Kontak Admin</button>
+    </div>
+
+    <!-- TAB 1: GENERATE KEY -->
+    <div id="tab-generate" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <span>Formulir Penerbitan Kunci Lisensi Komputer</span>
+        </div>
+
+        <div class="form-group">
+          <label>1. HARDWARE ID KOMPUTER PELANGGAN (Wajib Awalan GFX-)</label>
+          <input type="text" id="inputHwid" placeholder="Contoh: GFX-040D-6CCD-BDE2" autocomplete="off" />
+        </div>
+
+        <div class="form-group">
+          <label>2. NAMA TOKO / PERCETAKAN PELANGGAN</label>
+          <input type="text" id="inputCustomer" placeholder="Contoh: Percetakan Jaya Abadi" autocomplete="off" />
+        </div>
+
+        <div class="form-group">
+          <label>3. PILIH SKEMA LISENSI</label>
+          <div class="radio-group">
+            <div class="radio-card active" id="cardLifetime" onclick="selectType('LIFETIME')">
+              <span class="radio-card-title">💎 Beli Putus (Lifetime)</span>
+              <span class="radio-card-desc">Aktif permanen selamanya</span>
+            </div>
+            <div class="radio-card" id="cardSub" onclick="selectType('SUBSCRIPTION_1Y')">
+              <span class="radio-card-title">📅 Langganan 1 Tahun</span>
+              <span class="radio-card-desc">Aktif 365 hari ke depan</span>
+            </div>
+            <div class="radio-card" id="cardTrial" onclick="selectType('TRIAL_EXT')">
+              <span class="radio-card-title">⏱️ Trial Khusus (Custom Hari)</span>
+              <span class="radio-card-desc">Admin tentukan berapa hari</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" id="groupTrialDays" style="display: none;">
+          <label>JUMLAH HARI MASA PERCOBAAN (TRIAL)</label>
+          <input type="number" id="inputTrialDays" min="1" max="365" value="7" />
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px;" onclick="generateKey()">
+          🔑 Generate Kunci Lisensi & Buat Format Chat WhatsApp
+        </button>
+
+        <!-- Result Box -->
+        <div class="result-box" id="resultBox">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <b style="font-size: 11.5px; color: #38bdf8;">✅ LISENSI BERHASIL DITERBITKAN:</b>
+            <span id="resultTypeBadge" class="badge badge-lifetime">LIFETIME</span>
+          </div>
+
+          <div class="key-display" id="resultKey"></div>
+
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-success" onclick="copyWaTemplate()">📱 Salin Format Chat WhatsApp</button>
+            <button class="btn btn-secondary" onclick="copyRawKey()">📋 Salin Kode Kunci Saja</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: RIWAYAT LISENSI -->
+    <div id="tab-history" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <span>Daftar Seluruh Kunci Lisensi yang Pernah Diterbitkan</span>
+          <input type="text" id="searchHistory" placeholder="Cari nama toko / HWID..." style="width: 220px; padding: 4px 8px; font-size: 11px;" oninput="filterHistory()" />
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Tgl Terbit</th>
+                <th>Nama Toko</th>
+                <th>Hardware ID</th>
+                <th>Skema</th>
+                <th>Kedaluwarsa</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: REMOTE KILLSWITCH & BLOKIR -->
+    <div id="tab-killswitch" class="tab-content">
+      <div class="card" style="border-color: #881337;">
+        <div class="card-header" style="color: #fda4af;">
+          <span>🛡️ Remote Kill-Switch (Kunci / Cabut Lisensi Jarak Jauh)</span>
+        </div>
+        <p style="font-size: 11.5px; color: #94a3b8; margin-bottom: 14px; line-height: 1.5;">
+          Fitur ini memungkinkan Anda menonaktifkan aplikasi di komputer pelanggan dari jarak jauh jika terjadi pelanggaran, penunggakan sewa, atau pembatalan lisensi. Begitu HWID diblokir, aplikasi mereka akan otomatis terkunci.
+        </p>
+
+        <!-- Form Tambah Blokir Cepat -->
+        <div style="background: #18121d; border: 1px solid #4c0519; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+          <b style="font-size: 11px; color: #fda4af; display: block; margin-bottom: 8px;">➕ Tambah Komputer ke Daftar Blokir:</b>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap: 8px;">
+            <input type="text" id="blockInputHwid" placeholder="Hardware ID (GFX-...)" />
+            <input type="text" id="blockInputCustomer" placeholder="Nama Toko" />
+            <input type="text" id="blockInputReason" placeholder="Alasan Blokir (misal: Sewa Belum Lunas)" />
+            <button class="btn btn-danger" onclick="submitBlockHwid()">🔴 Blokir Sekarang</button>
+          </div>
+        </div>
+
+        <div class="card-header" style="margin-top: 10px;">
+          <span>Daftar HWID yang Sedang Dinonaktifkan:</span>
+          <button class="btn btn-secondary" style="font-size: 10.5px;" onclick="copyKillswitchJson()">📋 Salin JSON Registry untuk GitHub</button>
+        </div>
+
+        <div class="table-container" style="max-height: 250px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Tgl Blokir</th>
+                <th>Hardware ID</th>
+                <th>Nama Toko</th>
+                <th>Alasan Penangguhan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="blockedTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SETTINGS -->
+    <div id="tab-settings" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <span>Pengaturan Identitas & Nomor Kontak IT Support</span>
+        </div>
+
+        <div class="form-group">
+          <label>Nomor WhatsApp Resmi Admin / IT Support</label>
+          <input type="text" id="settingPhone" placeholder="Contoh: 085163594245" />
+          <span style="font-size: 10px; color: #64748b; margin-top: 3px; display: block;">
+            Nomor ini akan otomatis masuk ke template chat aktivasi WhatsApp dan dialog bantuan client.
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label>Nama Pengirim / IT Support</label>
+          <input type="text" id="settingName" placeholder="Contoh: GFX IT PRINTING Support" />
+        </div>
+
+        <div class="form-group">
+          <label>Nama Resmi Software</label>
+          <input type="text" id="settingAppName" placeholder="GFX IT PRINTING" />
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Simpan Pengaturan Kontak</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">Teks berhasil disalin!</div>
+
+  <script>
+    const { ipcRenderer, clipboard } = require('electron');
+
+    let currentSelectedType = 'LIFETIME';
+    let currentGeneratedData = null;
+    let fullHistoryData = [];
+    let fullBlockedData = [];
+
+    function minimizeWindow() { ipcRenderer.send('window-minimize'); }
+    function closeWindow() { ipcRenderer.send('window-close'); }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2500);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'tab-history' || tabId === 'tab-killswitch') {
+        loadData();
+      }
+    }
+
+    function selectType(type) {
+      currentSelectedType = type;
+      document.getElementById('cardLifetime').classList.remove('active');
+      document.getElementById('cardSub').classList.remove('active');
+      document.getElementById('cardTrial').classList.remove('active');
+
+      if (type === 'LIFETIME') document.getElementById('cardLifetime').classList.add('active');
+      if (type === 'SUBSCRIPTION_1Y') document.getElementById('cardSub').classList.add('active');
+      if (type === 'TRIAL_EXT') document.getElementById('cardTrial').classList.add('active');
+
+      document.getElementById('groupTrialDays').style.display = type === 'TRIAL_EXT' ? 'block' : 'none';
+    }
+
+    async function loadData() {
+      const data = await ipcRenderer.invoke('get-keygen-data');
+      if (data) {
+        document.getElementById('statTotal').innerText = data.stats.total;
+        document.getElementById('statLifetime').innerText = data.stats.lifetime;
+        document.getElementById('statSub').innerText = data.stats.subscription;
+        document.getElementById('statTrial').innerText = data.stats.trial;
+        document.getElementById('statBlocked').innerText = data.stats.totalBlocked || 0;
+
+        document.getElementById('settingPhone').value = data.settings.adminPhone || '085163594245';
+        document.getElementById('settingName').value = data.settings.adminName || 'GFX IT PRINTING Support';
+        document.getElementById('settingAppName').value = data.settings.appName || 'GFX IT PRINTING';
+        document.getElementById('supportPhoneTop').innerText = data.settings.adminPhone || '085163594245';
+
+        fullHistoryData = data.history || [];
+        fullBlockedData = data.blocked || [];
+        renderHistory(fullHistoryData);
+        renderBlocked(fullBlockedData);
+      }
+    }
+
+    function renderHistory(list) {
+      const tbody = document.getElementById('historyTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">Belum ada riwayat lisensi yang diterbitkan.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(item => {
+        const typeBadge = item.type === 'LIFETIME'
+          ? '<span class="badge badge-lifetime">LIFETIME</span>'
+          : item.type === 'SUBSCRIPTION_1Y'
+          ? '<span class="badge badge-sub">1 TAHUN</span>'
+          : `<span class="badge badge-trial">TRIAL ${item.customDays || 7}H</span>`;
+
+        const isBlocked = fullBlockedData.some(b => b.hwid === item.hwid);
+
+        return `
+          <tr>
+            <td style="color: #94a3b8;">${item.issued}</td>
+            <td><b>${item.customer}</b></td>
+            <td style="font-family: monospace; color: #38bdf8;">${item.hwid}</td>
+            <td>${typeBadge}</td>
+            <td>${item.expires === 'FOREVER' ? 'Selamanya' : item.expires}</td>
+            <td>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="copyHistoryWa('${item.id}')">WA</button>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="copyHistoryKey('${item.id}')">Key</button>
+              ${isBlocked 
+                ? `<span class="badge badge-blocked">BLOCKED</span>` 
+                : `<button class="btn btn-danger" style="padding: 2px 6px; font-size: 10px;" onclick="quickBlockHwid('${item.hwid}', '${item.customer}')">Blokir</button>`
+              }
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderBlocked(list) {
+      const tbody = document.getElementById('blockedTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">Tidak ada komputer yang sedang diblokir. Semua lisensi aktif normal.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(item => `
+        <tr>
+          <td style="color: #fda4af;">${item.blockedAt || '-'}</td>
+          <td style="font-family: monospace; color: #f43f5e; font-weight: bold;">${item.hwid}</td>
+          <td><b>${item.customer}</b></td>
+          <td style="color: #fca5a5;">${item.reason}</td>
+          <td>
+            <button class="btn btn-success" style="padding: 2px 8px; font-size: 10px;" onclick="unblockHwid('${item.hwid}')">Buka Blokir (Unblock)</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterHistory() {
+      const q = document.getElementById('searchHistory').value.toLowerCase();
+      const filtered = fullHistoryData.filter(h =>
+        h.customer.toLowerCase().includes(q) ||
+        h.hwid.toLowerCase().includes(q)
+      );
+      renderHistory(filtered);
+    }
+
+    async function generateKey() {
+      const hwid = document.getElementById('inputHwid').value;
+      const customer = document.getElementById('inputCustomer').value;
+      const customDays = document.getElementById('inputTrialDays').value;
+
+      if (!hwid) {
+        alert('Silakan masukkan Hardware ID pelanggan!');
+        return;
+      }
+
+      const res = await ipcRenderer.invoke('generate-key', {
+        hwid,
+        customer,
+        type: currentSelectedType,
+        customDays
+      });
+
+      if (!res.success) {
+        alert(res.message);
+        return;
+      }
+
+      currentGeneratedData = res;
+      document.getElementById('resultKey').innerText = res.envelope;
+      document.getElementById('resultTypeBadge').innerText = res.type === 'LIFETIME' ? 'LIFETIME' : res.type === 'SUBSCRIPTION_1Y' ? '1 TAHUN' : 'TRIAL KHUSUS';
+      document.getElementById('resultBox').classList.add('show');
+      showToast('Kunci lisensi berhasil diterbitkan!');
+      loadData();
+    }
+
+    function copyWaTemplate() {
+      if (currentGeneratedData?.waTemplate) {
+        clipboard.writeText(currentGeneratedData.waTemplate);
+        showToast('Format chat WhatsApp berhasil disalin!');
+      }
+    }
+
+    function copyRawKey() {
+      if (currentGeneratedData?.envelope) {
+        clipboard.writeText(currentGeneratedData.envelope);
+        showToast('Kode kunci lisensi berhasil disalin!');
+      }
+    }
+
+    function copyHistoryWa(id) {
+      const item = fullHistoryData.find(h => h.id === id);
+      if (item) {
+        clipboard.writeText(item.waTemplate);
+        showToast('Format WhatsApp berhasil disalin!');
+      }
+    }
+
+    function copyHistoryKey(id) {
+      const item = fullHistoryData.find(h => h.id === id);
+      if (item) {
+        clipboard.writeText(item.envelope || item.key);
+        showToast('Kunci lisensi berhasil disalin!');
+      }
+    }
+
+    async function submitBlockHwid() {
+      const hwid = document.getElementById('blockInputHwid').value;
+      const customer = document.getElementById('blockInputCustomer').value;
+      const reason = document.getElementById('blockInputReason').value;
+
+      if (!hwid) {
+        alert('Silakan masukkan Hardware ID yang ingin diblokir!');
+        return;
+      }
+
+      await ipcRenderer.invoke('block-hwid', { hwid, customer, reason });
+      document.getElementById('blockInputHwid').value = '';
+      document.getElementById('blockInputCustomer').value = '';
+      document.getElementById('blockInputReason').value = '';
+      showToast(`HWID ${hwid} berhasil diblokir!`);
+      loadData();
+    }
+
+    async function quickBlockHwid(hwid, customer) {
+      const reason = prompt(`Masukkan alasan pemblokiran lisensi untuk toko "${customer}" (${hwid}):`, 'Penangguhan lisensi oleh Administrator.');
+      if (reason !== null) {
+        await ipcRenderer.invoke('block-hwid', { hwid, customer, reason });
+        showToast(`Lisensi ${customer} berhasil dinonaktifkan!`);
+        loadData();
+      }
+    }
+
+    async function unblockHwid(hwid) {
+      if (confirm(`Yakin ingin membuka blokir untuk ${hwid}? Komputer tersebut akan dapat menggunakan lisensi kembali.`)) {
+        await ipcRenderer.invoke('unblock-hwid', hwid);
+        showToast(`Blokir untuk ${hwid} telah dicabut!`);
+        loadData();
+      }
+    }
+
+    async function copyKillswitchJson() {
+      const jsonStr = await ipcRenderer.invoke('get-killswitch-json');
+      clipboard.writeText(jsonStr);
+      showToast('JSON Killswitch disalin! Tempelkan ke file license-registry.json di GitHub.');
+    }
+
+    async function saveSettings() {
+      const adminPhone = document.getElementById('settingPhone').value;
+      const adminName = document.getElementById('settingName').value;
+      const appName = document.getElementById('settingAppName').value;
+
+      await ipcRenderer.invoke('save-keygen-settings', { adminPhone, adminName, appName });
+      showToast('Pengaturan kontak berhasil disimpan!');
+      loadData();
+    }
+
+    // Initialize
+    loadData();
+  </script>
+</body>
+</html>
