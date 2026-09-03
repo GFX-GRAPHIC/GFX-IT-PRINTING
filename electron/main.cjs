@@ -51,8 +51,8 @@ ipcMain.handle('license:get-hwid', () => {
   return licenseEngine.getHardwareId();
 });
 
-ipcMain.handle('license:activate', (_event, key) => {
-  return licenseEngine.activateLicenseKey(key);
+ipcMain.handle('license:activate', async (_event, key) => {
+  return await licenseEngine.activateLicenseKey(key);
 });
 
 let mainWindow = null;
@@ -117,7 +117,7 @@ function createWindow() {
     if (mainWindow.webContents) {
       mainWindow.webContents.focus();
     }
-    // Check remote license kill-switch status asynchronously
+    // Check remote license kill-switch status asynchronously on startup
     setTimeout(async () => {
       try {
         const killCheck = await licenseEngine.checkRemoteKillSwitch();
@@ -126,6 +126,16 @@ function createWindow() {
         }
       } catch {}
     }, 2000);
+
+    // Periodic remote kill-switch verification every 2 minutes
+    setInterval(async () => {
+      try {
+        const killCheck = await licenseEngine.checkRemoteKillSwitch();
+        if (killCheck && killCheck.blocked && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('license:blocked', { reason: killCheck.reason });
+        }
+      } catch {}
+    }, 120000);
 
     // Check for updates automatically in production
     if (app.isPackaged) {

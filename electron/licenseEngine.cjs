@@ -194,53 +194,109 @@ function verifyLicense(inputKeyOrEnvelope, currentHwid) {
   return { valid: false, message: 'Format kode lisensi tidak dikenali. Harap salin seluruh kode aktivasi.' };
 }
 
-// 4. Remote Kill-Switch & Blacklist Checker
+// 4. Remote Kill-Switch & Blacklist Checker (Live Zero-Cache via GitHub API + Raw Fallback)
 function checkRemoteKillSwitch() {
   return new Promise((resolve) => {
-    const currentHwid = getHardwareId();
-    const req = https.get(REMOTE_REGISTRY_URL + '?t=' + Date.now(), { timeout: 3500 }, (res) => {
-      if (res.statusCode !== 200) {
+    const currentHwid = getHardwareId().trim().toUpperCase();
+
+    const fetchFromGithubApi = (onDone) => {
+      const options = {
+        hostname: 'api.github.com',
+        path: '/repos/GFX-GRAPHIC/GFX-IT-PRINTING/contents/license-registry.json',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'GFX-IT-PRINTING-Client',
+          'Accept': 'application/vnd.github.v3.raw',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+        timeout: 4000,
+      };
+
+      const req = https.request(options, (res) => {
+        if (res.statusCode !== 200) return onDone(null);
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try { onDone(JSON.parse(raw)); } catch { onDone(null); }
+        });
+      });
+      req.on('error', () => onDone(null));
+      req.on('timeout', () => { req.destroy(); onDone(null); });
+      req.end();
+    };
+
+    const fetchFromRawFallback = (onDone) => {
+      const cacheBust = Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+      const url = `${REMOTE_REGISTRY_URL}?_cb=${cacheBust}`;
+      const req = https.get(url, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        timeout: 4000
+      }, (res) => {
+        if (res.statusCode !== 200) return onDone(null);
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try { onDone(JSON.parse(raw)); } catch { onDone(null); }
+        });
+      });
+      req.on('error', () => onDone(null));
+      req.on('timeout', () => { req.destroy(); onDone(null); });
+    };
+
+    const processRegistry = (parsed) => {
+      if (!parsed || !Array.isArray(parsed.blocked_hwids)) {
+        // Network or parse issue: preserve existing local state
+        const blockPath = getBlockedFilePath();
+        if (fs.existsSync(blockPath)) {
+          try {
+            const bData = JSON.parse(fs.readFileSync(blockPath, 'utf-8'));
+            return resolve({ blocked: true, reason: bData.reason || 'Lisensi telah dinonaktifkan oleh Administrator.' });
+          } catch {
+            return resolve({ blocked: true, reason: 'Lisensi telah dinonaktifkan oleh Administrator.' });
+          }
+        }
         return resolve({ blocked: false });
       }
-      let rawData = '';
-      res.on('data', (chunk) => { rawData += chunk; });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(rawData);
-          const blockedList = parsed.blocked_hwids || [];
-          const match = blockedList.find(b => {
-            const bHwid = typeof b === 'string' ? b : b.hwid;
-            return bHwid && bHwid.trim().toUpperCase() === currentHwid.toUpperCase();
-          });
 
-          if (match) {
-            const reason = typeof match === 'object' && match.reason ? match.reason : 'Lisensi telah dinonaktifkan oleh Administrator.';
-            // Write local blocked marker
-            try {
-              fs.writeFileSync(getBlockedFilePath(), JSON.stringify({ blockedAt: new Date().toISOString(), reason }), 'utf-8');
-              // Remove active license file
-              if (fs.existsSync(getLicenseFilePath())) {
-                fs.unlinkSync(getLicenseFilePath());
-              }
-            } catch {}
-            return resolve({ blocked: true, reason });
-          } else {
-            // If unblocked on server, clear local blocked marker
-            if (fs.existsSync(getBlockedFilePath())) {
-              try { fs.unlinkSync(getBlockedFilePath()); } catch {}
-            }
-            return resolve({ blocked: false, announcement: parsed.broadcast_announcement });
-          }
-        } catch {
-          resolve({ blocked: false });
-        }
+      const blockedList = parsed.blocked_hwids || [];
+      const match = blockedList.find(b => {
+        const bHwid = typeof b === 'string' ? b : b.hwid;
+        return bHwid && bHwid.trim().toUpperCase() === currentHwid;
       });
-    });
 
-    req.on('error', () => resolve({ blocked: false }));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve({ blocked: false });
+      if (match) {
+        const reason = typeof match === 'object' && match.reason ? match.reason : 'Lisensi telah dinonaktifkan oleh Administrator.';
+        // Write local blocked marker
+        try {
+          fs.writeFileSync(getBlockedFilePath(), JSON.stringify({ blockedAt: new Date().toISOString(), reason, hwid: currentHwid }), 'utf-8');
+          // Wipe active license file
+          if (fs.existsSync(getLicenseFilePath())) {
+            fs.unlinkSync(getLicenseFilePath());
+          }
+        } catch {}
+        return resolve({ blocked: true, reason });
+      } else {
+        // Confirmed NOT in blocked list on cloud: safely remove local block marker
+        if (fs.existsSync(getBlockedFilePath())) {
+          try { fs.unlinkSync(getBlockedFilePath()); } catch {}
+        }
+        return resolve({ blocked: false, announcement: parsed.broadcast_announcement });
+      }
+    };
+
+    // Try live GitHub REST API first for 0-latency, fallback to raw CDN
+    fetchFromGithubApi((apiData) => {
+      if (apiData) {
+        processRegistry(apiData);
+      } else {
+        fetchFromRawFallback((rawData) => {
+          processRegistry(rawData);
+        });
+      }
     });
   });
 }
@@ -266,7 +322,19 @@ function getLicenseStatus() {
         hwid: currentHwid,
         message: bData.reason || 'Lisensi komputer ini telah dinonaktifkan oleh Administrator.'
       };
-    } catch {}
+    } catch {
+      return {
+        isLicensed: false,
+        isTrial: false,
+        isExpired: true,
+        isBlocked: true,
+        status: 'BLOCKED',
+        remainingDays: 0,
+        customerName: 'Lisensi Ditangguhkan',
+        hwid: currentHwid,
+        message: 'Lisensi komputer ini telah dinonaktifkan oleh Administrator.'
+      };
+    }
   }
 
   // Check permanent license file
@@ -312,16 +380,36 @@ function getLicenseStatus() {
   };
 }
 
-// 6. Activate License Key
-function activateLicenseKey(serialKey) {
-  const currentHwid = getHardwareId();
+// 6. Activate License Key (Async with Mandatory Remote Cloud & Local Blacklist Check)
+async function activateLicenseKey(serialKey) {
+  const currentHwid = getHardwareId().trim().toUpperCase();
   const blockPath = getBlockedFilePath();
 
-  // If currently blocked, check if block was removed
+  // 1. Check local persistent block first
+  let localBlocked = false;
+  let localReason = 'Lisensi komputer ini telah dinonaktifkan oleh Administrator.';
   if (fs.existsSync(blockPath)) {
-    try { fs.unlinkSync(blockPath); } catch {}
+    try {
+      const bData = JSON.parse(fs.readFileSync(blockPath, 'utf-8'));
+      localBlocked = true;
+      if (bData && bData.reason) localReason = bData.reason;
+    } catch {
+      localBlocked = true;
+    }
   }
 
+  // 2. Perform Realtime Remote Registry Check (Cloud Kill-Switch)
+  const killCheck = await checkRemoteKillSwitch();
+  if (killCheck && killCheck.blocked) {
+    const reason = killCheck.reason || localReason;
+    return {
+      success: false,
+      isBlocked: true,
+      message: `⛔ AKTIVASI DITOLAK: Komputer ini sedang dinonaktifkan (BLOCKED) oleh Administrator.\n\nAlasan: ${reason}\n\nSerial Key yang Anda masukkan tidak dapat digunakan pada komputer yang diblokir. Hubungi WhatsApp Support (0851-6359-4245).`
+    };
+  }
+
+  // 3. Cryptographic Serial Key Validation
   const check = verifyLicense(serialKey, currentHwid);
 
   if (!check.valid) {

@@ -62,6 +62,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({ isOpen, onClose, onS
         if (onSuccess) onSuccess();
       } else {
         setError(res?.message || 'Kode lisensi tidak valid!');
+        loadStatus();
       }
     } else {
       setLoading(false);

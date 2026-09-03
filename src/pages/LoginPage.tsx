@@ -36,7 +36,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, dbConnected }) 
       if ((window as any).electronAPI?.licenseGetStatus) {
         const status = await (window as any).electronAPI.licenseGetStatus();
         setLicenseStatus(status);
-        if (!status.isLicensed && !status.isTrial) {
+        if (status.isBlocked || (!status.isLicensed && !status.isTrial)) {
           setShowLicenseModal(true);
         }
       }
@@ -45,6 +45,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, dbConnected }) 
 
   useEffect(() => {
     checkLicense();
+    if ((window as any).electronAPI?.onLicenseBlocked) {
+      (window as any).electronAPI.onLicenseBlocked((data: any) => {
+        setLicenseStatus({
+          isBlocked: true,
+          isLicensed: false,
+          isTrial: false,
+          status: 'BLOCKED',
+          message: data?.reason || 'Lisensi komputer ini telah dinonaktifkan oleh Administrator.'
+        });
+        setShowLicenseModal(true);
+      });
+    }
   }, []);
 
   // Lockout live countdown timer
@@ -66,8 +78,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, dbConnected }) 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check License Status First
-    if (licenseStatus && !licenseStatus.isLicensed && !licenseStatus.isTrial) {
+    // Check Live License Status First
+    let currentLiveStatus = licenseStatus;
+    if ((window as any).electronAPI?.licenseGetStatus) {
+      try {
+        currentLiveStatus = await (window as any).electronAPI.licenseGetStatus();
+        setLicenseStatus(currentLiveStatus);
+      } catch {}
+    }
+
+    if (currentLiveStatus?.isBlocked) {
+      setError(`⛔ Komputer ini sedang dinonaktifkan (BLOCKED) oleh Administrator!\nAlasan: ${currentLiveStatus.message || 'Penangguhan lisensi'}`);
+      setShowLicenseModal(true);
+      return;
+    }
+
+    if (currentLiveStatus && !currentLiveStatus.isLicensed && !currentLiveStatus.isTrial) {
       setError('Aplikasi belum diaktivasi! Harap aktivasi lisensi resmi terlebih dahulu.');
       setShowLicenseModal(true);
       return;
