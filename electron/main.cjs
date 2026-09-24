@@ -1,9 +1,15 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, session, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile, exec } = require('child_process');
 const { autoUpdater } = require('electron-updater');
 const licenseEngine = require('./licenseEngine.cjs');
+const aiTracerService = require('./aiTracerService.cjs');
+
+// Fast Cold-Start & Hardware Acceleration Flags
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
 
 // Auto-Updater Configuration
 autoUpdater.autoDownload = true;
@@ -58,6 +64,7 @@ ipcMain.handle('license:activate', async (_event, key) => {
 let mainWindow = null;
 let corelCompanionWindow = null;
 let corelNumeratorWindow = null;
+let corelAiTracerWindow = null;
 let activeJerseySessionData = {
   teamName: 'GFX IT PRINTING',
   players: [],
@@ -251,38 +258,89 @@ function createCorelNumeratorWindow() {
   return corelNumeratorWindow;
 }
 
+function createCorelAiTracerWindow() {
+  if (corelAiTracerWindow) {
+    corelAiTracerWindow.focus();
+    return corelAiTracerWindow;
+  }
 
-// Window control IPC
-ipcMain.on('window-reload', () => {
-  if (mainWindow) mainWindow.reload();
+  corelAiTracerWindow = new BrowserWindow({
+    width: 1240,
+    height: 820,
+    minWidth: 960,
+    minHeight: 620,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: false,
+    backgroundColor: '#0f172a',
+    title: 'GFX IT PRINTING — AI Jersey Tracer (Gemini Embedded)',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webviewTag: true,
+      webSecurity: false,
+    },
+  });
+
+  corelAiTracerWindow.loadFile(path.join(__dirname, 'corel-ai-tracer.html'));
+
+  corelAiTracerWindow.on('closed', () => {
+    corelAiTracerWindow = null;
+  });
+
+  return corelAiTracerWindow;
+}
+
+
+// Window control IPC (supports any caller window)
+ipcMain.on('window-reload', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.reload();
 });
 
-ipcMain.on('window-minimize', () => {
-  if (mainWindow) mainWindow.minimize();
+ipcMain.on('window-minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.minimize();
 });
 
-ipcMain.on('window-maximize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
+ipcMain.on('window-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize();
     } else {
-      mainWindow.maximize();
+      win.maximize();
     }
   }
 });
 
-ipcMain.on('window-unmaximize', () => {
-  if (mainWindow && mainWindow.isMaximized()) {
-    mainWindow.unmaximize();
+ipcMain.on('window-unmaximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win && win.isMaximized()) {
+    win.unmaximize();
   }
 });
 
-ipcMain.on('window-close', () => {
-  if (mainWindow) mainWindow.close();
+ipcMain.on('window-close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.close();
 });
 
-ipcMain.handle('window-is-maximized', () => {
-  return mainWindow ? mainWindow.isMaximized() : false;
+ipcMain.handle('window-is-maximized', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  return win ? win.isMaximized() : false;
+});
+
+ipcMain.handle('tracer:toggle-always-on-top', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    const nextState = !win.isAlwaysOnTop();
+    win.setAlwaysOnTop(nextState);
+    return { isAlwaysOnTop: nextState };
+  }
+  return { isAlwaysOnTop: false };
 });
 
 // Printing Handlers
@@ -1334,6 +1392,16 @@ ipcMain.handle('corel:open-numerator-tool', async () => {
   return { success: true };
 });
 
+// Open AI Jersey Tracer Companion Tool Window
+ipcMain.handle('corel:open-ai-tracer-tool', async () => {
+  const win = createCorelAiTracerWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
 // Execute Numerator in CorelDRAW (Supporting CorelDRAW X7 up to 2024 seamlessly)
 ipcMain.handle('corel:execute-numerator', async (_event, payload) => {
   return new Promise((resolve) => {
@@ -1819,14 +1887,465 @@ $result | ConvertTo-Json -Compress
   });
 });
 
-app.whenReady().then(() => {
+// ==========================================
+// AI Jersey Tracer & Auto-PowerClip Handlers
+// ==========================================
 
+// 1. Validate Google Gemini API Key
+ipcMain.handle('corel:ai-tracer-validate-key', async (_event, apiKey) => {
+  try {
+    return await aiTracerService.validateGeminiApiKey(apiKey);
+  } catch (err) {
+    return { valid: false, message: err?.message || 'Gagal memvalidasi API Key' };
+  }
+});
+
+// 2. Process Mockup to Flat Pattern using Gemini & Imagen 3
+ipcMain.handle('corel:ai-tracer-process', async (_event, payload) => {
+  try {
+    return await aiTracerService.processAiJerseyTrace(payload);
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal memproses gambar dengan AI Gemini' };
+  }
+});
+
+// 3. Apply Pattern and Logo into CorelDRAW (Auto-PowerClip into selected shape)
+ipcMain.handle('corel:apply-ai-pattern', async (_event, payload) => {
+  return new Promise((resolve) => {
+    const { patternPath, logoBase64, bleedCm = 1.5 } = payload || {};
+
+    if (!patternPath || !fs.existsSync(patternPath)) {
+      return resolve({ success: false, message: 'File motif gambar tidak ditemukan di komputer.' });
+    }
+
+    let logoPath = '';
+    if (logoBase64) {
+      try {
+        logoPath = aiTracerService.saveExtractedLogo(logoBase64);
+      } catch {}
+    }
+
+    const tempDir = app.getPath('temp');
+    const tempPs1Path = path.join(tempDir, `corel_apply_pattern_${Date.now()}.ps1`);
+    const tempJsonPath = path.join(tempDir, `corel_apply_pattern_${Date.now()}.json`);
+
+    fs.writeFileSync(tempJsonPath, JSON.stringify({ patternPath, logoPath, bleedCm }), 'utf-8');
+
+    const psScript = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = '' }
+
+try {
+    # 1. Connect to active CorelDRAW COM instance (Supporting Corel X7 to 2025)
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c) {
+                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                    $corel = $c
+                    break
+                } elseif (-not $corel) {
+                    $corel = $c
+                }
+            }
+        } catch {}
+    }
+
+    if (-not $corel) {
+        $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+        if ($curVer) {
+            try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {}
+        }
+    }
+    if (-not $corel) {
+        try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {}
+    }
+
+    if (-not $corel) {
+        throw "Tidak dapat terhubung ke CorelDRAW. Pastikan aplikasi CorelDRAW sudah dibuka terlebih dahulu."
+    }
+
+    $doc = $null
+    try { $doc = $corel.ActiveDocument } catch {}
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try {
+            $doc = $corel.Documents.Item(1)
+            $doc.Activate()
+        } catch {}
+    }
+
+    if (-not $doc) {
+        $doc = $corel.CreateDocument()
+        $doc.Activate()
+    }
+
+    $doc.Unit = 3 # cdrCentimeter
+
+    function Get-RangeCount($r) {
+        if (-not $r) { return 0 }
+        try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+        try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+        return 0
+    }
+
+    function Get-RangeItem($r, [int]$idx) {
+        if (-not $r) { return $null }
+        try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+        return $null
+    }
+
+    $jsonFile = $args[0]
+    $data = Get-Content -Path $jsonFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $patternPath = $data.patternPath
+    $logoPath = $data.logoPath
+    $bleedCm = [double]($data.bleedCm)
+    if (-not $bleedCm -or $bleedCm -lt 0) { $bleedCm = 1.5 }
+
+    if (-not (Test-Path $patternPath)) {
+        throw "File gambar motif tidak ditemukan: $patternPath"
+    }
+
+    $selection = $null
+    try { $selection = $corel.ActiveSelection } catch {}
+    if (-not $selection -or (Get-RangeCount $selection) -eq 0) {
+        try { $selection = $doc.Selection } catch {}
+    }
+    $selCount = Get-RangeCount $selection
+
+    if ($selCount -ge 1) {
+        # Auto-PowerClip into selected shape (jersey cutting pattern)
+        $targetShape = Get-RangeItem $selection 1
+
+        $polaCenterX = [double]$targetShape.CenterX
+        $polaCenterY = [double]$targetShape.CenterY
+        $polaWidth = [double]$targetShape.SizeWidth
+        $polaHeight = [double]$targetShape.SizeHeight
+        $polaTopY = [double]$targetShape.TopY
+
+        # Import pattern bitmap
+        $importedPattern = $doc.ActiveLayer.ImportBitmap($patternPath)
+
+        # Scale pattern proportionally to fully cover target shape + bleed
+        $targetW = $polaWidth + ($bleedCm * 2)
+        $targetH = $polaHeight + ($bleedCm * 2)
+
+        $currentW = [double]$importedPattern.SizeWidth
+        $currentH = [double]$importedPattern.SizeHeight
+        if ($currentW -gt 0 -and $currentH -gt 0) {
+            $ratioW = $targetW / $currentW
+            $ratioH = $targetH / $currentH
+            $scaleFactor = [Math]::Max($ratioW, $ratioH)
+            $importedPattern.SetSize($currentW * $scaleFactor, $currentH * $scaleFactor)
+        }
+
+        # Center pattern on the target shape
+        $importedPattern.SetPosition($polaCenterX, $polaCenterY)
+
+        # Execute PowerClip into shape
+        $importedPattern.AddToPowerClip($targetShape, 0) # 0 = cdrPowerClipAlignModeCenter
+
+        # If logo exists, import above the shape at chest height
+        if ($logoPath -and (Test-Path $logoPath)) {
+            $importedLogo = $doc.ActiveLayer.ImportBitmap($logoPath)
+            $logoW = [double]$importedLogo.SizeWidth
+            $logoH = [double]$importedLogo.SizeHeight
+            if ($logoW -gt 0) {
+                $targetLogoW = [Math]::Min($logoW, $polaWidth * 0.55)
+                $logoScale = $targetLogoW / $logoW
+                $importedLogo.SetSize($logoW * $logoScale, $logoH * $logoScale)
+            }
+            # Chest position (approx 25% down from top)
+            $chestY = $polaTopY - ($polaHeight * 0.25)
+            $importedLogo.SetPosition($polaCenterX, $chestY)
+            $importedLogo.OrderToFront()
+        }
+
+        $result.success = $true
+        $result.message = "Motif berhasil di-PowerClip ke dalam pola jersey CorelDRAW dan logo ditempatkan di dada!"
+    } else {
+        # No shape selected: import directly to active page center
+        $page = $doc.ActivePage
+        $pageCenterX = [double]$page.CenterX
+        $pageCenterY = [double]$page.CenterY
+
+        $importedPattern = $doc.ActiveLayer.ImportBitmap($patternPath)
+        $importedPattern.SetPosition($pageCenterX, $pageCenterY)
+
+        if ($logoPath -and (Test-Path $logoPath)) {
+            $importedLogo = $doc.ActiveLayer.ImportBitmap($logoPath)
+            $importedLogo.SetPosition($pageCenterX, $pageCenterY + 10)
+            $importedLogo.OrderToFront()
+        }
+
+        $result.success = $true
+        $result.message = "Motif & logo berhasil di-import ke tengah lembar kerja CorelDRAW!"
+    }
+} catch {
+    $result.success = $false
+    $result.message = $_.Exception.Message
+}
+
+$result | ConvertTo-Json -Compress
+`;
+
+    fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path, tempJsonPath],
+      { timeout: 60000 },
+      (err, stdout, stderr) => {
+        try {
+          if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
+          if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+        } catch {}
+
+        if (err && !stdout) {
+          const cleanErr = (stderr || err?.message || 'Gagal menerapkan motif ke CorelDRAW')
+            .replace(/Command failed:.*?\n/, '')
+            .trim();
+          resolve({ success: false, message: cleanErr || 'Gagal menerapkan motif ke CorelDRAW' });
+          return;
+        }
+
+        try {
+          const raw = (stdout || '').trim();
+          let parsed = null;
+          const jsonMatch = raw.match(/\{"success":[\s\S]*\}$/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+          } else {
+            const lines = raw.split('\n');
+            for (let i = lines.length - 1; i >= 0; i--) {
+              const line = lines[i].trim();
+              if (line.startsWith('{') && line.endsWith('}')) {
+                parsed = JSON.parse(line);
+                break;
+              }
+            }
+          }
+          if (!parsed) parsed = JSON.parse(raw);
+
+          if (!parsed.success) {
+            // Auto copy pattern image to clipboard for 1-click Ctrl+V
+            try {
+              if (patternPath && fs.existsSync(patternPath)) {
+                clipboard.writeImage(nativeImage.createFromPath(patternPath));
+                parsed.clipboardCopied = true;
+                parsed.message = (parsed.message || 'Gagal terhubung ke CorelDRAW.') + 
+                  '\n\n✓ KABAR BAIK: Motif flat otomatis sudah disalin ke Clipboard! Silakan langsung tekan Ctrl+V (Paste) di CorelDRAW.\n\nTips: Jika ingin Auto-PowerClip otomatis, jalankan aplikasi GFX IT PRINTING sebagai Administrator (Run as Administrator) sama seperti CorelDRAW Anda.';
+              }
+            } catch {}
+          }
+
+          resolve(parsed);
+        } catch {
+          // Auto copy on catch as well
+          try {
+            if (patternPath && fs.existsSync(patternPath)) {
+              clipboard.writeImage(nativeImage.createFromPath(patternPath));
+            }
+          } catch {}
+          resolve({ 
+            success: false, 
+            clipboardCopied: true,
+            message: 'Tidak dapat terhubung langsung ke CorelDRAW (Perbedaan hak Administrator).\n\n✓ Motif flat sudah otomatis disalin ke Clipboard! Silakan langsung tekan Ctrl+V (Paste) di CorelDRAW.' 
+          });
+        }
+      }
+    );
+  });
+});
+
+// 4. Copy image to Clipboard for instant Paste in CorelDRAW
+ipcMain.handle('corel:copy-image-clipboard', async (_event, imagePathOrBase64) => {
+  try {
+    let img = null;
+    if (typeof imagePathOrBase64 === 'string') {
+      if (imagePathOrBase64.startsWith('data:image')) {
+        const b64 = imagePathOrBase64.split('base64,')[1];
+        img = nativeImage.createFromBuffer(Buffer.from(b64, 'base64'));
+      } else if (fs.existsSync(imagePathOrBase64)) {
+        img = nativeImage.createFromPath(imagePathOrBase64);
+      }
+    }
+    if (img && !img.isEmpty()) {
+      clipboard.writeImage(img);
+      return { success: true };
+    }
+    return { success: false, message: 'Gagal memproses gambar.' };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal menyalin gambar.' };
+  }
+});
+
+// 5. Open image in Windows Explorer
+ipcMain.handle('corel:open-file-explorer', async (_event, filePath) => {
+  try {
+    const { shell } = require('electron');
+    if (filePath && fs.existsSync(filePath)) {
+      shell.showItemInFolder(filePath);
+      return { success: true };
+    }
+    return { success: false, message: 'File tidak ditemukan.' };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal membuka folder.' };
+  }
+});
+
+// 6. Read image from Clipboard
+ipcMain.handle('corel:read-image-clipboard', async () => {
+  try {
+    const { clipboard, nativeImage } = require('electron');
+    const img = clipboard.readImage();
+    if (img && !img.isEmpty()) {
+      const buf = img.toPNG();
+      const size = img.getSize();
+      return {
+        success: true,
+        dataUrl: `data:image/png;base64,${buf.toString('base64')}`,
+        size,
+      };
+    }
+    return { success: false, message: 'Clipboard tidak berisi gambar. Salin gambar terlebih dahulu (klik kanan gambar -> Salin Gambar).' };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal membaca clipboard.' };
+  }
+});
+
+// 7. Save raw pattern image with 300 DPI metadata
+ipcMain.handle('corel:save-pattern-image', async (_event, { dataUrl, upscale4k = false }) => {
+  try {
+    if (!dataUrl) throw new Error('Data gambar kosong.');
+    const b64 = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl;
+    let buf = Buffer.from(b64, 'base64');
+
+    if (upscale4k) {
+      try {
+        const { nativeImage } = require('electron');
+        const img = nativeImage.createFromBuffer(buf);
+        const size = img.getSize();
+        const resized = img.resize({ width: size.width * 2, height: size.height * 2, quality: 'best' });
+        buf = resized.toPNG();
+      } catch {}
+    }
+
+    // Set 300 DPI metadata
+    try {
+      const ppm = 11811;
+      const physChunk = Buffer.alloc(21);
+      physChunk.writeUInt32BE(9, 0);
+      physChunk.write('pHYs', 4);
+      physChunk.writeUInt32BE(ppm, 8);
+      physChunk.writeUInt32BE(ppm, 12);
+      physChunk.writeUInt8(1, 16);
+      let crc = 0 ^ (-1);
+      const sub = physChunk.subarray(4, 17);
+      for (let i = 0; i < sub.length; i++) {
+        crc = (crc >>> 8) ^ [0, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3][(crc ^ sub[i]) & 0x07];
+      }
+      physChunk.writeUInt32BE(crc ^ (-1), 17);
+      if (buf.length > 33) {
+        buf = Buffer.concat([buf.subarray(0, 33), physChunk, buf.subarray(33)]);
+      }
+    } catch {}
+
+    const tempDir = app.getPath('temp');
+    const fileName = `gfx_pattern_${Date.now()}.png`;
+    const filePath = path.join(tempDir, fileName);
+    fs.writeFileSync(filePath, buf);
+
+    return {
+      success: true,
+      filePath,
+      dataUrl: `data:image/png;base64,${buf.toString('base64')}`,
+    };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal menyimpan gambar pola.' };
+  }
+});
+
+// 8. Open external URL in default browser
+ipcMain.handle('corel:open-external-url', async (_event, url) => {
+  try {
+    const { shell } = require('electron');
+    if (url) {
+      await shell.openExternal(url);
+      return { success: true };
+    }
+    return { success: false, message: 'URL kosong.' };
+  } catch (err) {
+    return { success: false, message: err?.message };
+  }
+});
+
+app.whenReady().then(() => {
+  try {
+    const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    const geminiSession = session.fromPartition('persist:gemini_session');
+    geminiSession.setUserAgent(CHROME_UA);
+  } catch {}
 
   createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+// Custom Context Menu & Popups for Embedded Webview (Gemini Web)
+app.on('web-contents-created', (_event, contents) => {
+  if (contents.getType() === 'webview') {
+    contents.on('context-menu', (_e, params) => {
+      const menuItems = [];
+
+      if (params.hasImageContents) {
+        menuItems.push({
+          label: '⚡ Salin Gambar ke Corel Companion (1-Klik)',
+          click: () => {
+            contents.copyImageAt(params.x, params.y);
+            if (corelAiTracerWindow && !corelAiTracerWindow.isDestroyed()) {
+              corelAiTracerWindow.webContents.send('tracer:clipboard-image-ready');
+            }
+          },
+        });
+        menuItems.push({
+          label: '📋 Salin Gambar (Copy Image)',
+          click: () => contents.copyImageAt(params.x, params.y),
+        });
+        menuItems.push({ type: 'separator' });
+      }
+
+      menuItems.push({ role: 'cut', label: 'Potong (Cut)' });
+      menuItems.push({ role: 'copy', label: 'Salin Teks (Copy)' });
+      menuItems.push({ role: 'paste', label: 'Tempel (Paste)' });
+      menuItems.push({ role: 'selectAll', label: 'Pilih Semua' });
+      menuItems.push({ type: 'separator' });
+      menuItems.push({
+        label: '🔄 Muat Ulang Halaman Gemini',
+        click: () => contents.reload(),
+      });
+      menuItems.push({
+        label: '🏠 Ke Halaman Utama Gemini',
+        click: () => contents.loadURL('https://gemini.google.com/app'),
+      });
+
+      const menu = Menu.buildFromTemplate(menuItems);
+      menu.popup();
+    });
+
+    contents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('https://accounts.google.com') || url.startsWith('https://gemini.google.com')) {
+        return { action: 'allow' };
+      }
+      const { shell } = require('electron');
+      shell.openExternal(url);
+      return { action: 'deny' };
+    });
+  }
 });
 
 app.on('window-all-closed', () => {

@@ -12,5 +12,26 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('xlsx')) {
+              return 'vendor-excel';
+            }
+            if (id.includes('tesseract.js')) {
+              return 'vendor-ocr';
+            }
+            if (id.includes('html2canvas')) {
+              return 'vendor-canvas';
+            }
+          }
+        },
+      },
+    },
   }
 });

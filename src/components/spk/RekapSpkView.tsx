@@ -5,7 +5,8 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatRupiah, generateWhatsAppUrl } from '../../utils/formatters';
 import { sounds } from '../../utils/soundEffects';
-import { InvoicePrintView } from '../pos/InvoicePrintView';
+
+const InvoicePrintView = React.lazy(() => import('../pos/InvoicePrintView').then(m => ({ default: m.InvoicePrintView })));
 
 interface RekapSpkViewProps {
   onOpenSpk: (order: Order) => void;
@@ -1168,10 +1169,12 @@ export const RekapSpkView: React.FC<RekapSpkViewProps> = ({
 
       {/* 5. MODAL: NOTA ONLINE / INVOICE DIGITAL (KIRIM KE WA) */}
       {activeInvoiceOrder && (
-        <InvoicePrintView
-          order={activeInvoiceOrder}
-          onClose={() => setActiveInvoiceOrder(null)}
-        />
+        <React.Suspense fallback={null}>
+          <InvoicePrintView
+            order={activeInvoiceOrder}
+            onClose={() => setActiveInvoiceOrder(null)}
+          />
+        </React.Suspense>
       )}
 
       {/* 6. MODAL: PELUNASAN / UPDATE PEMBAYARAN CEPAT */}

@@ -1,0 +1,22 @@
+{
+  "appId": "com.gfx.licensekeygen",
+  "productName": "GFX License Keygen Generator",
+  "electronVersion": "34.5.8",
+  "directories": {
+    "output": "dist-release"
+  },
+  "files": [
+    "keygen/**/*",
+    "public/favicon.ico"
+  ],
+  "extraMetadata": {
+    "main": "keygen/main.cjs"
+  },
+  "win": {
+    "target": "portable",
+    "icon": "public/favicon.ico"
+  },
+  "portable": {
+    "artifactName": "GFX License Keygen Generator.exe"
+  }
+}

@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   corelBatchExportSelection: (payload) => ipcRenderer.invoke('corel:batch-export-selection', payload),
   corelExportNextSelection: (payload) => ipcRenderer.invoke('corel:export-next-selection', payload),
   corelOpenNumeratorTool: () => ipcRenderer.invoke('corel:open-numerator-tool'),
+  corelOpenAiTracerTool: () => ipcRenderer.invoke('corel:open-ai-tracer-tool'),
   corelExecuteNumerator: (payload) => ipcRenderer.invoke('corel:execute-numerator', payload),
   // License Management APIs
   licenseGetStatus: () => ipcRenderer.invoke('license:get-status'),
@@ -34,6 +35,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdaterStatus: (callback) => ipcRenderer.on('updater:status', (_event, data) => callback(data)),
   updaterCheck: () => ipcRenderer.invoke('updater:check'),
   updaterInstall: () => ipcRenderer.invoke('updater:quit-and-install'),
+  // AI Jersey Tracer APIs
+  aiTracerValidateKey: (apiKey) => ipcRenderer.invoke('corel:ai-tracer-validate-key', apiKey),
+  aiTracerProcess: (payload) => ipcRenderer.invoke('corel:ai-tracer-process', payload),
+  corelApplyAiPattern: (payload) => ipcRenderer.invoke('corel:apply-ai-pattern', payload),
+  copyImageToClipboard: (payload) => ipcRenderer.invoke('corel:copy-image-clipboard', payload),
+  readImageFromClipboard: () => ipcRenderer.invoke('corel:read-image-clipboard'),
+  savePatternImage: (payload) => ipcRenderer.invoke('corel:save-pattern-image', payload),
+  openExternalUrl: (url) => ipcRenderer.invoke('corel:open-external-url', url),
+  openFileInExplorer: (filePath) => ipcRenderer.invoke('corel:open-file-explorer', filePath),
+  tracerToggleAlwaysOnTop: () => ipcRenderer.invoke('tracer:toggle-always-on-top'),
+  onTracerClipboardReady: (callback) => {
+    ipcRenderer.on('tracer:clipboard-image-ready', () => callback());
+  },
 });
 
 

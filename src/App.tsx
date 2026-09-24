@@ -1,30 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AppMenuBar, AppView } from './components/layout/AppMenuBar';
 import { LoginPage } from './pages/LoginPage';
 import { InputSpkForm } from './components/spk/InputSpkForm';
 import { RekapSpkView } from './components/spk/RekapSpkView';
-import { ProduksiPage } from './pages/ProduksiPage';
-import { PerapihJerseyPage } from './pages/PerapihJerseyPage';
-import { DashboardOwnerPage } from './pages/DashboardOwnerPage';
+
+// Code-Splitting: Lazy load heavy secondary pages for instant startup
+const ProduksiPage = lazy(() => import('./pages/ProduksiPage').then(m => ({ default: m.ProduksiPage })));
+const PerapihJerseyPage = lazy(() => import('./pages/PerapihJerseyPage').then(m => ({ default: m.PerapihJerseyPage })));
+const DashboardOwnerPage = lazy(() => import('./pages/DashboardOwnerPage').then(m => ({ default: m.DashboardOwnerPage })));
 
 // Master Pages
-import { MasterKonsumenPage } from './pages/MasterKonsumenPage';
-import { MasterKategoriPage } from './pages/MasterKategoriPage';
-import { MasterProdukPage } from './pages/MasterProdukPage';
-import { MasterMesinPage } from './pages/MasterMesinPage';
-import { TagihanBiayaProduksiPage } from './pages/TagihanBiayaProduksiPage';
-import { DataPiutangPage } from './pages/DataPiutangPage';
-import { KasBiayaPage } from './pages/KasBiayaPage';
-import { PurchaseOrderPage } from './pages/PurchaseOrderPage';
-import { ShiftKasirPage } from './pages/ShiftKasirPage';
-import { LaporanKeuanganPage } from './pages/LaporanKeuanganPage';
-import { PengaturanSistemPage } from './pages/PengaturanSistemPage';
-import { ManajemenUserPage } from './pages/ManajemenUserPage';
+const MasterKonsumenPage = lazy(() => import('./pages/MasterKonsumenPage').then(m => ({ default: m.MasterKonsumenPage })));
+const MasterKategoriPage = lazy(() => import('./pages/MasterKategoriPage').then(m => ({ default: m.MasterKategoriPage })));
+const MasterProdukPage = lazy(() => import('./pages/MasterProdukPage').then(m => ({ default: m.MasterProdukPage })));
+const MasterMesinPage = lazy(() => import('./pages/MasterMesinPage').then(m => ({ default: m.MasterMesinPage })));
+const TagihanBiayaProduksiPage = lazy(() => import('./pages/TagihanBiayaProduksiPage').then(m => ({ default: m.TagihanBiayaProduksiPage })));
+const DataPiutangPage = lazy(() => import('./pages/DataPiutangPage').then(m => ({ default: m.DataPiutangPage })));
+const KasBiayaPage = lazy(() => import('./pages/KasBiayaPage').then(m => ({ default: m.KasBiayaPage })));
+const PurchaseOrderPage = lazy(() => import('./pages/PurchaseOrderPage').then(m => ({ default: m.PurchaseOrderPage })));
+const ShiftKasirPage = lazy(() => import('./pages/ShiftKasirPage').then(m => ({ default: m.ShiftKasirPage })));
+const LaporanKeuanganPage = lazy(() => import('./pages/LaporanKeuanganPage').then(m => ({ default: m.LaporanKeuanganPage })));
+const PengaturanSistemPage = lazy(() => import('./pages/PengaturanSistemPage').then(m => ({ default: m.PengaturanSistemPage })));
+const ManajemenUserPage = lazy(() => import('./pages/ManajemenUserPage').then(m => ({ default: m.ManajemenUserPage })));
 
 // Print Modals
-import { ReceiptPrintView } from './components/pos/ReceiptPrintView';
-import { InvoicePrintView } from './components/pos/InvoicePrintView';
-import { SpkPrintDocument } from './components/spk/SpkPrintDocument';
+const ReceiptPrintView = lazy(() => import('./components/pos/ReceiptPrintView').then(m => ({ default: m.ReceiptPrintView })));
+const InvoicePrintView = lazy(() => import('./components/pos/InvoicePrintView').then(m => ({ default: m.InvoicePrintView })));
+const SpkPrintDocument = lazy(() => import('./components/spk/SpkPrintDocument').then(m => ({ default: m.SpkPrintDocument })));
+
+const PageLoader = () => (
+  <div className="flex-1 flex items-center justify-center bg-white dark:bg-[#0b0f19]">
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <span className="text-[11px] text-slate-500 font-medium">Memuat halaman...</span>
+    </div>
+  </div>
+);
 
 import { Order } from './types';
 import { useAuth } from './context/AuthContext';
@@ -241,100 +252,104 @@ export const App: React.FC = () => {
         ) : (
           // Konten Aplikasi saat sudah login
           <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#0b0f19]">
-            {/* Dashboard Eksekutif KHUSUS Owner */}
-            {isOwner && currentView === 'dashboard' && <DashboardOwnerPage />}
+            <Suspense fallback={<PageLoader />}>
+              {/* Dashboard Eksekutif KHUSUS Owner */}
+              {isOwner && currentView === 'dashboard' && <DashboardOwnerPage />}
 
-            {/* Tools Desain: Perapih List Pesanan & Ukuran Jersey (Designer, Admin, Owner) */}
-            {currentView === 'perapih_jersey' && (
-              <PerapihJerseyPage
-                onImportToSpk={(items) => {
-                  setImportedSpkItems(items);
-                  setEditingSpkOrder(null);
-                  setCurrentView('input_spk');
-                }}
-              />
-            )}
+              {/* Tools Desain: Perapih List Pesanan & Ukuran Jersey (Designer, Admin, Owner) */}
+              {currentView === 'perapih_jersey' && (
+                <PerapihJerseyPage
+                  onImportToSpk={(items) => {
+                    setImportedSpkItems(items);
+                    setEditingSpkOrder(null);
+                    setCurrentView('input_spk');
+                  }}
+                />
+              )}
 
-            {/* Input SPK (Khusus Designer & Owner) */}
-            {currentView === 'input_spk' && (
-              <InputSpkForm
-                editingOrder={editingSpkOrder}
-                importedItems={importedSpkItems}
-                onClearImportedItems={() => setImportedSpkItems(null)}
-                onPrintSpk={(spk) => setPrintSpkData(spk)}
-                onExit={() => {
-                  setEditingSpkOrder(null);
-                  setImportedSpkItems(null);
-                  setCurrentView('rekap_spk');
-                }}
-              />
-            )}
+              {/* Input SPK (Khusus Designer & Owner) */}
+              {currentView === 'input_spk' && (
+                <InputSpkForm
+                  editingOrder={editingSpkOrder}
+                  importedItems={importedSpkItems}
+                  onClearImportedItems={() => setImportedSpkItems(null)}
+                  onPrintSpk={(spk) => setPrintSpkData(spk)}
+                  onExit={() => {
+                    setEditingSpkOrder(null);
+                    setImportedSpkItems(null);
+                    setCurrentView('rekap_spk');
+                  }}
+                />
+              )}
 
-            {/* Rekap SPK (Designer, Admin, Owner - Operator diblokir) */}
-            {currentView === 'rekap_spk' && (
-              <RekapSpkView
-                onOpenSpk={(ord) => {
-                  setEditingSpkOrder(ord);
-                  setCurrentView('input_spk');
-                }}
-                onPrintSpk={(ord) => setPrintSpkData(ord)}
-                onPrintReceipt={(ord) => setPrintReceiptOrder(ord)}
-                onPrintInvoice={(ord) => setPrintInvoiceOrder(ord)}
-                onNewSpk={() => {
-                  setEditingSpkOrder(null);
-                  setCurrentView('input_spk');
-                }}
-              />
-            )}
+              {/* Rekap SPK (Designer, Admin, Owner - Operator diblokir) */}
+              {currentView === 'rekap_spk' && (
+                <RekapSpkView
+                  onOpenSpk={(ord) => {
+                    setEditingSpkOrder(ord);
+                    setCurrentView('input_spk');
+                  }}
+                  onPrintSpk={(ord) => setPrintSpkData(ord)}
+                  onPrintReceipt={(ord) => setPrintReceiptOrder(ord)}
+                  onPrintInvoice={(ord) => setPrintInvoiceOrder(ord)}
+                  onNewSpk={() => {
+                    setEditingSpkOrder(null);
+                    setCurrentView('input_spk');
+                  }}
+                />
+              )}
 
-            {/* Menu Baru: Antrean Produksi Workshop (Khusus Operator, Owner, Admin) */}
-            {currentView === 'produksi' && (
-              <ProduksiPage onPrintSpk={(ord) => setPrintSpkData(ord)} />
-            )}
+              {/* Menu Baru: Antrean Produksi Workshop (Khusus Operator, Owner, Admin) */}
+              {currentView === 'produksi' && (
+                <ProduksiPage onPrintSpk={(ord) => setPrintSpkData(ord)} />
+              )}
 
-            {currentView === 'master_konsumen' && <MasterKonsumenPage />}
-            {currentView === 'tagihan_produksi' && <TagihanBiayaProduksiPage />}
-            {currentView === 'data_piutang' && <DataPiutangPage />}
-            {currentView === 'kas_biaya' && <KasBiayaPage />}
-            {currentView === 'shift_kasir' && <ShiftKasirPage />}
+              {currentView === 'master_konsumen' && <MasterKonsumenPage />}
+              {currentView === 'tagihan_produksi' && <TagihanBiayaProduksiPage />}
+              {currentView === 'data_piutang' && <DataPiutangPage />}
+              {currentView === 'kas_biaya' && <KasBiayaPage />}
+              {currentView === 'shift_kasir' && <ShiftKasirPage />}
 
-            {/* Halaman Khusus Role Owner (PO Supplier, Kategori, Produk, Mesin, Laporan, User, Pengaturan Toko & Rekening) */}
-            {isOwner && (
-              <>
-                {currentView === 'purchase_order' && <PurchaseOrderPage />}
-                {currentView === 'master_kategori' && <MasterKategoriPage />}
-                {currentView === 'master_produk' && <MasterProdukPage />}
-                {currentView === 'master_mesin' && <MasterMesinPage />}
-                {currentView === 'laporan' && <LaporanKeuanganPage />}
-                {currentView === 'manajemen_user' && <ManajemenUserPage />}
-                {currentView === 'pengaturan' && <PengaturanSistemPage />}
-              </>
-            )}
+              {/* Halaman Khusus Role Owner (PO Supplier, Kategori, Produk, Mesin, Laporan, User, Pengaturan Toko & Rekening) */}
+              {isOwner && (
+                <>
+                  {currentView === 'purchase_order' && <PurchaseOrderPage />}
+                  {currentView === 'master_kategori' && <MasterKategoriPage />}
+                  {currentView === 'master_produk' && <MasterProdukPage />}
+                  {currentView === 'master_mesin' && <MasterMesinPage />}
+                  {currentView === 'laporan' && <LaporanKeuanganPage />}
+                  {currentView === 'manajemen_user' && <ManajemenUserPage />}
+                  {currentView === 'pengaturan' && <PengaturanSistemPage />}
+                </>
+              )}
+            </Suspense>
           </div>
         )}
       </div>
 
       {/* 3. Printable Document Overlays */}
-      {printSpkData && (
-        <SpkPrintDocument
-          order={printSpkData}
-          onClose={() => setPrintSpkData(null)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {printSpkData && (
+          <SpkPrintDocument
+            order={printSpkData}
+            onClose={() => setPrintSpkData(null)}
+          />
+        )}
 
-      {printReceiptOrder && (
-        <ReceiptPrintView
-          order={printReceiptOrder}
-          onClose={() => setPrintReceiptOrder(null)}
-        />
-      )}
+        {printReceiptOrder && (
+          <ReceiptPrintView
+            order={printReceiptOrder}
+            onClose={() => setPrintReceiptOrder(null)}
+          />
+        )}
 
-      {printInvoiceOrder && (
-        <InvoicePrintView
-          order={printInvoiceOrder}
-          onClose={() => setPrintInvoiceOrder(null)}
-        />
-      )}
+        {printInvoiceOrder && (
+          <InvoicePrintView
+            order={printInvoiceOrder}
+            onClose={() => setPrintInvoiceOrder(null)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };

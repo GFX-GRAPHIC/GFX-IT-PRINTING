@@ -6,8 +6,16 @@ node_modules/
 # Production & Build Artifacts
 dist/
 dist-release/
+release/
 dist-ssr/
 *.local
+
+# Temporary Test Scripts & Dumps
+*.stackdump
+testFastCorel.ps1
+testOptimizeCorel.ps1
+testCorel.vbs
+inspectCorel.ps1
 
 # Environment & Secrets
 .env

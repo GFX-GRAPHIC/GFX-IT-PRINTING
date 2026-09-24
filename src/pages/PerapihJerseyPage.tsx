@@ -11,6 +11,8 @@ import {
 import { extractTextFromImage, OcrProgressInfo } from '../utils/ocrService';
 import { formatRupiah } from '../utils/formatters';
 import { sanitizeText } from '../utils/security';
+import { Sparkles } from 'lucide-react';
+import { AiJerseyTracerModal } from '../components/ai-tracer/AiJerseyTracerModal';
 
 interface PerapihJerseyPageProps {
   onImportToSpk?: (items: Array<{ item: string; file: string; p: string; l: string; byk: number; catatan: string }>) => void;
@@ -61,6 +63,7 @@ Bambang 5 L Pendek`);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedNotification, setCopiedNotification] = useState(false);
   const [activeTabSize, setActiveTabSize] = useState<string | 'all'>('all');
+  const [showAiTracer, setShowAiTracer] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -341,6 +344,22 @@ Bambang 5 L Pendek`);
             className="h-8 px-3 rounded bg-white dark:bg-slate-800 hover:bg-[#eff6ff] text-[#334155] dark:text-slate-200 border border-[#cbd5e1] dark:border-slate-700 text-xs font-bold transition-colors cursor-pointer"
           >
             Cetak / PDF
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if ((window as any).electronAPI?.corelOpenAiTracerTool) {
+                (window as any).electronAPI.corelOpenAiTracerTool();
+              } else {
+                setShowAiTracer(true);
+              }
+            }}
+            className="h-8 px-3.5 rounded bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+            title="Buka AI Jersey Tracer (Mockup ke Pola CorelDRAW)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>✨ AI Mockup ke Pola</span>
           </button>
 
           <button
@@ -896,6 +915,12 @@ Bambang 5 L Pendek`);
           )}
         </div>
       </div>
+
+      {/* AI Jersey Tracer Modal */}
+      <AiJerseyTracerModal
+        isOpen={showAiTracer}
+        onClose={() => setShowAiTracer(false)}
+      />
     </div>
   );
 };

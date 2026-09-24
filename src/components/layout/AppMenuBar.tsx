@@ -35,6 +35,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { LicenseModal } from './LicenseModal';
+import { AiJerseyTracerModal } from '../ai-tracer/AiJerseyTracerModal';
 
 export type AppView =
   | 'login'
@@ -78,6 +79,7 @@ export const AppMenuBar: React.FC<AppMenuBarProps> = ({
   const [corelLoading, setCorelLoading] = useState(false);
   const [licenseStatus, setLicenseStatus] = useState<any>(null);
   const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [showAiTracerModal, setShowAiTracerModal] = useState(false);
   const [updaterData, setUpdaterData] = useState<{
     status: string;
     version?: string;
@@ -604,6 +606,28 @@ export const AppMenuBar: React.FC<AppMenuBarProps> = ({
                     <div className="text-[10px] text-[#64748b]">Nomorator Voucher, Tiket, ID Card & Nota</div>
                   </div>
                 </button>
+
+                {/* 5. AI Jersey Tracer (Mockup ke Pola) */}
+                <button
+                  onClick={() => {
+                    if ((window as any).electronAPI?.corelOpenAiTracerTool) {
+                      (window as any).electronAPI.corelOpenAiTracerTool();
+                    } else {
+                      setShowAiTracerModal(true);
+                    }
+                    setOpenDropdown(null);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-[#1e293b] hover:bg-[#eff6ff] hover:text-[#1e40af] flex items-center gap-2 border-t border-[#f8fafc]"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <div>
+                    <div className="font-bold text-[#1e40af] flex items-center gap-1">
+                      <span>✨ AI Jersey Tracer</span>
+                      <span className="text-[9px] bg-amber-100 text-amber-900 px-1 rounded font-extrabold">BARU</span>
+                    </div>
+                    <div className="text-[10px] text-[#64748b]">Mockup 3D AI ke Pola Flat 2D + Auto-PowerClip</div>
+                  </div>
+                </button>
               </div>
             )}
           </div>
@@ -823,6 +847,12 @@ export const AppMenuBar: React.FC<AppMenuBarProps> = ({
         onSuccess={() => {
           fetchLicenseStatus();
         }}
+      />
+
+      {/* AI Jersey Tracer Modal */}
+      <AiJerseyTracerModal
+        isOpen={showAiTracerModal}
+        onClose={() => setShowAiTracerModal(false)}
       />
     </div>
   );
