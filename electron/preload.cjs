@@ -48,6 +48,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTracerClipboardReady: (callback) => {
     ipcRenderer.on('tracer:clipboard-image-ready', () => callback());
   },
+  // Certificate & Variable Data Merger APIs
+  corelOpenCertMergerTool: () => ipcRenderer.invoke('corel:open-cert-merger-tool'),
+  corelParseExcelFile: (filePath) => ipcRenderer.invoke('corel:parse-excel-file', filePath),
+  corelExecuteCertMerger: (payload) => ipcRenderer.invoke('corel:execute-cert-merger', payload),
 });
 
 

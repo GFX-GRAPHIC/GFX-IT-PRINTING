@@ -30,6 +30,7 @@ import {
   Key,
   Download,
   Sparkles,
+  Award,
 } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
@@ -607,7 +608,27 @@ export const AppMenuBar: React.FC<AppMenuBarProps> = ({
                   </div>
                 </button>
 
-                {/* 5. AI Jersey Tracer (Mockup ke Pola) */}
+                {/* 5. Generator Sertifikat & Mail Merge Excel (VDP) */}
+                <button
+                  onClick={() => {
+                    if ((window as any).electronAPI?.corelOpenCertMergerTool) {
+                      (window as any).electronAPI.corelOpenCertMergerTool();
+                    }
+                    setOpenDropdown(null);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-[#1e293b] hover:bg-[#eef2ff] hover:text-[#4338ca] flex items-center gap-2 border-t border-[#f8fafc]"
+                >
+                  <Award className="w-4 h-4 text-[#4f46e5]" />
+                  <div>
+                    <div className="font-bold text-[#3730a3] flex items-center gap-1">
+                      <span>📜 Generator Sertifikat (Excel)</span>
+                      <span className="text-[9px] bg-indigo-100 text-indigo-900 px-1 rounded font-extrabold">BARU</span>
+                    </div>
+                    <div className="text-[10px] text-[#64748b]">Ubah Nama/Teks Bebas dari Excel (A1, A2, dst)</div>
+                  </div>
+                </button>
+
+                {/* 6. AI Jersey Tracer (Mockup ke Pola) */}
                 <button
                   onClick={() => {
                     if ((window as any).electronAPI?.corelOpenAiTracerTool) {

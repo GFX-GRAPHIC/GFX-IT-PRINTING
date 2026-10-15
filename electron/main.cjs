@@ -65,6 +65,7 @@ let mainWindow = null;
 let corelCompanionWindow = null;
 let corelNumeratorWindow = null;
 let corelAiTracerWindow = null;
+let corelCertMergerWindow = null;
 let activeJerseySessionData = {
   teamName: 'GFX IT PRINTING',
   players: [],
@@ -187,6 +188,14 @@ function createWindow() {
       corelNumeratorWindow.close();
       corelNumeratorWindow = null;
     }
+    if (corelAiTracerWindow) {
+      corelAiTracerWindow.close();
+      corelAiTracerWindow = null;
+    }
+    if (corelCertMergerWindow) {
+      corelCertMergerWindow.close();
+      corelCertMergerWindow = null;
+    }
   });
 }
 
@@ -291,6 +300,40 @@ function createCorelAiTracerWindow() {
   });
 
   return corelAiTracerWindow;
+}
+
+function createCorelCertMergerWindow() {
+  if (corelCertMergerWindow) {
+    corelCertMergerWindow.focus();
+    return corelCertMergerWindow;
+  }
+
+  corelCertMergerWindow = new BrowserWindow({
+    width: 490,
+    height: 700,
+    minWidth: 420,
+    minHeight: 580,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: '#0f172a',
+    title: 'GFX IT PRINTING — Certificate & Variable Data Merger',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+
+  corelCertMergerWindow.loadFile(path.join(__dirname, 'corel-cert-merger.html'));
+
+  corelCertMergerWindow.on('closed', () => {
+    corelCertMergerWindow = null;
+  });
+
+  return corelCertMergerWindow;
 }
 
 
@@ -1402,6 +1445,16 @@ ipcMain.handle('corel:open-ai-tracer-tool', async () => {
   return { success: true };
 });
 
+// Open Certificate & Variable Data Merger Companion Tool Window
+ipcMain.handle('corel:open-cert-merger-tool', async () => {
+  const win = createCorelCertMergerWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
 // Execute Numerator in CorelDRAW (Supporting CorelDRAW X7 up to 2024 seamlessly)
 ipcMain.handle('corel:execute-numerator', async (_event, payload) => {
   return new Promise((resolve) => {
@@ -1862,6 +1915,430 @@ $result | ConvertTo-Json -Compress
             .replace(/Command failed:.*?\n/, '')
             .trim();
           resolve({ success: false, message: cleanErr || 'Gagal menjalankan penomoran di CorelDRAW' });
+          return;
+        }
+
+        try {
+          const raw = (stdout || '').trim();
+          const jsonMatch = raw.match(/\{"success":[\s\S]*\}$/);
+          if (jsonMatch) {
+            return resolve(JSON.parse(jsonMatch[0]));
+          }
+          const lines = raw.split('\n');
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i].trim();
+            if (line.startsWith('{') && line.endsWith('}')) {
+              return resolve(JSON.parse(line));
+            }
+          }
+          resolve(JSON.parse(raw));
+        } catch {
+          resolve({ success: false, message: stdout.trim() || stderr || 'Gagal memproses respon CorelDRAW' });
+        }
+      }
+    );
+  });
+});
+
+// ========================================================
+// Certificate & Variable Data Merger (Excel VDP) Handlers
+// ========================================================
+
+// 1. Parse Excel / CSV File
+ipcMain.handle('corel:parse-excel-file', async (_event, filePath) => {
+  try {
+    const xlsx = require('xlsx');
+    let targetPath = filePath;
+    if (!targetPath || typeof targetPath !== 'string') {
+      const fileResult = await dialog.showOpenDialog({
+        title: 'Pilih File Excel / CSV Data Peserta',
+        filters: [
+          { name: 'Excel / CSV Files', extensions: ['xlsx', 'xls', 'csv', 'ods'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+      if (fileResult.canceled || !fileResult.filePaths?.length) {
+        return { success: false, message: 'Pemilihan file dibatalkan' };
+      }
+      targetPath = fileResult.filePaths[0];
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      return { success: false, message: 'File Excel tidak ditemukan pada komputer.' };
+    }
+
+    const workbook = xlsx.readFile(targetPath, { type: 'file' });
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      return { success: false, message: 'File Excel tidak memiliki lembar kerja (worksheet).' };
+    }
+
+    function indexToLetter(idx) {
+      let letter = '';
+      let temp = idx;
+      while (temp >= 0) {
+        letter = String.fromCharCode((temp % 26) + 65) + letter;
+        temp = Math.floor(temp / 26) - 1;
+      }
+      return letter;
+    }
+
+    const sheetsData = {};
+    const sheetNames = workbook.SheetNames;
+    const activeSheet = sheetNames[0];
+
+    for (const sName of sheetNames) {
+      const worksheet = workbook.Sheets[sName];
+      const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      if (!rawData || rawData.length === 0) {
+        sheetsData[sName] = { headers: [], rows: [], totalRows: 0 };
+        continue;
+      }
+
+      const headerRow = rawData[0] || [];
+      const maxCols = Math.max(headerRow.length, ...rawData.map(r => (Array.isArray(r) ? r.length : 0)));
+
+      const headers = [];
+      for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+        const letter = indexToLetter(colIdx);
+        const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
+        const name = rawName || `Kolom ${letter}`;
+        headers.push({
+          letter,
+          name,
+          label: `${letter}: ${name}`
+        });
+      }
+
+      const rows = [];
+      for (let rIdx = 1; rIdx < rawData.length; rIdx++) {
+        const rowValues = rawData[rIdx];
+        if (!rowValues) continue;
+        const hasData = rowValues.some(val => val !== undefined && val !== null && String(val).trim() !== '');
+        if (!hasData) continue;
+
+        const rowObj = {};
+        for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+          const letter = indexToLetter(colIdx);
+          const cellVal = rowValues[colIdx];
+          rowObj[letter] = cellVal !== undefined && cellVal !== null ? String(cellVal).trim() : '';
+        }
+        rows.push(rowObj);
+      }
+
+      sheetsData[sName] = {
+        headers,
+        rows,
+        totalRows: rows.length
+      };
+    }
+
+    const primary = sheetsData[activeSheet] || { headers: [], rows: [], totalRows: 0 };
+
+    return {
+      success: true,
+      filePath: targetPath,
+      sheetNames,
+      activeSheet,
+      sheetsData,
+      headers: primary.headers,
+      rows: primary.rows,
+      totalRows: primary.totalRows
+    };
+  } catch (err) {
+    console.error('[Excel Parse Error]', err);
+    return { success: false, message: `Gagal membaca Excel: ${err?.message || err}` };
+  }
+});
+
+// 2. Execute Certificate & Variable Data Merger in CorelDRAW
+ipcMain.handle('corel:execute-cert-merger', async (_event, payload) => {
+  return new Promise((resolve) => {
+    const {
+      rows = [],
+      mappings = [],
+      mode = 'page',
+      autoCurves = true,
+    } = payload || {};
+
+    if (!rows || rows.length === 0) {
+      return resolve({ success: false, message: 'Tidak ada data baris Excel yang diproses.' });
+    }
+    if (!mappings || mappings.length === 0) {
+      return resolve({ success: false, message: 'Tidak ada pemetaan variabel teks yang ditentukan.' });
+    }
+
+    const tempDir = app.getPath('temp');
+    const timestamp = Date.now();
+    const tempJsonPath = path.join(tempDir, `corel_cert_data_${timestamp}.json`);
+    const tempPs1Path = path.join(tempDir, `corel_cert_${timestamp}.ps1`);
+
+    try {
+      fs.writeFileSync(tempJsonPath, JSON.stringify({ rows, mappings, mode, autoCurves }), 'utf-8');
+    } catch (err) {
+      return resolve({ success: false, message: `Gagal menyiapkan file data: ${err.message}` });
+    }
+
+    const psScript = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = ''; count = 0; totalPages = 0 }
+
+trap {
+    $errLine = $_.InvocationInfo.ScriptLineNumber
+    $errMsg = $_.Exception.Message
+    if (-not $errMsg) { $errMsg = "$_" }
+    $res = @{
+        success = $false
+        message = "CorelDRAW Error (Line $errLine): $errMsg"
+    }
+    $res | ConvertTo-Json -Compress
+    exit 0
+}
+
+# Helper function: Replace text in shape case-insensitively
+function Replace-ShapeText($shp, $findText, $replaceVal) {
+    if (-not $shp) { return }
+    if ($shp.Type -eq 6) { # cdrTextShape
+        try {
+            [void]$shp.Text.Story.Replace($findText, $replaceVal, $false)
+        } catch {
+            try {
+                $cur = $shp.Text.Story.Text
+                if ($cur) {
+                    $pattern = [regex]::Escape($findText)
+                    $shp.Text.Story.Text = [regex]::Replace($cur, $pattern, [string]$replaceVal, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+                }
+            } catch {}
+        }
+    }
+}
+
+# Helper function: Find all text shapes recursively including groups and PowerClips
+function Get-AllTextShapes($container) {
+    $list = @()
+    if (-not $container) { return $list }
+    try {
+        $found = $container.Shapes.FindShapes($null, 6, $true)
+        if ($found -and $found.Count -gt 0) {
+            for ($k = 1; $k -le $found.Count; $k++) {
+                $list += $found.Item($k)
+            }
+        }
+    } catch {}
+
+    try {
+        $all = $container.Shapes.FindShapes()
+        if ($all -and $all.Count -gt 0) {
+            for ($k = 1; $k -le $all.Count; $k++) {
+                $s = $all.Item($k)
+                try {
+                    if ($s.PowerClip) {
+                        $pcShapes = $s.PowerClip.Shapes.FindShapes($null, 6, $true)
+                        if ($pcShapes -and $pcShapes.Count -gt 0) {
+                            for ($j = 1; $j -le $pcShapes.Count; $j++) {
+                                $list += $pcShapes.Item($j)
+                            }
+                        }
+                    }
+                } catch {}
+            }
+        }
+    } catch {}
+    return $list
+}
+
+# Helper function: Apply variable row data to text shapes
+function Apply-RowReplacement($textList, $rowObj, $mapList) {
+    if (-not $textList -or -not $rowObj -or -not $mapList) { return }
+    foreach ($m in $mapList) {
+        $ph = [string]$m.placeholder
+        $col = [string]$m.column
+        if (-not $ph) { continue }
+        $val = ""
+        if ($rowObj.PSObject.Properties[$col]) {
+            $val = [string]($rowObj.$col)
+        }
+        if ($null -eq $val) { $val = "" }
+        foreach ($t in $textList) {
+            Replace-ShapeText $t $ph $val
+        }
+    }
+}
+
+# Helper function: Convert texts to curves backwards
+function Convert-TextsToCurves($textList) {
+    if (-not $textList) { return }
+    for ($k = $textList.Count - 1; $k -ge 0; $k--) {
+        try {
+            $t = $textList[$k]
+            if ($t -and $t.Type -eq 6) {
+                [void]$t.CreateCurves()
+            }
+        } catch {}
+    }
+}
+
+try {
+    # 1. Read JSON input data
+    $jsonPath = '${tempJsonPath.replace(/'/g, "''")}'
+    $jsonRaw = [System.IO.File]::ReadAllText($jsonPath, [System.Text.Encoding]::UTF8)
+    $data = $jsonRaw | ConvertFrom-Json
+    $rows = $data.rows
+    $mappings = $data.mappings
+    $mode = [string]$data.mode
+    $autoCurves = [bool]$data.autoCurves
+
+    # Sort mappings by placeholder length descending (e.g. A10 before A1, [NAMA_LENGKAP] before [NAMA])
+    $sortedMappings = @($mappings | Sort-Object -Property @{ Expression = { $_.placeholder.Length }; Descending = $true })
+
+    # 2. Connect to CorelDRAW COM instance (Supporting CorelDRAW X7 up to 2025 seamlessly)
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c) {
+                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                    $corel = $c
+                    break
+                } elseif (-not $corel) {
+                    $corel = $c
+                }
+            }
+        } catch {}
+    }
+    if (-not $corel) {
+        try {
+            $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application")
+        } catch {}
+    }
+    if (-not $corel) {
+        throw "CorelDRAW tidak sedang berjalan. Silakan buka CorelDRAW dan dokumen template sertifikat Anda terlebih dahulu."
+    }
+
+    $doc = $corel.ActiveDocument
+    if (-not $doc) {
+        throw "Tidak ada dokumen template yang terbuka di CorelDRAW. Buka file sertifikat Anda terlebih dahulu."
+    }
+
+    # Optimization ON
+    try { $corel.Optimization = $true } catch {}
+    try { $corel.EventsEnabled = $false } catch {}
+    $doc.BeginCommandGroup("GFX Batch Certificate Mail Merge")
+
+    $totalRows = $rows.Count
+
+    if ($mode -eq 'inplace') {
+        # IN-PLACE: update active page or active selection only using first row
+        $targetContainer = $null
+        try {
+            if ($doc.ActiveSelection -and $doc.ActiveSelection.Shapes.Count -gt 0) {
+                $targetContainer = $doc.ActiveSelection
+            }
+        } catch {}
+        if (-not $targetContainer) {
+            $targetContainer = $doc.ActivePage
+            if (-not $targetContainer) { $targetContainer = $doc.Pages.Item(1) }
+        }
+
+        $texts = Get-AllTextShapes $targetContainer
+        if ($texts.Count -eq 0) {
+            throw "Tidak ditemukan objek teks pada seleksi/halaman aktif CorelDRAW."
+        }
+
+        Apply-RowReplacement $texts $rows[0] $sortedMappings
+        if ($autoCurves) {
+            Convert-TextsToCurves $texts
+        }
+
+        $result.count = 1
+        $result.totalPages = 1
+    }
+    else {
+        # MODE PAGE: 1 certificate per page
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
+        $masterPage.Activate()
+
+        if ($masterPage.Shapes.Count -eq 0) {
+            throw "Halaman template sertifikat (Halaman $($masterPage.Index)) masih kosong."
+        }
+
+        $initialMasterTexts = Get-AllTextShapes $masterPage
+        if ($initialMasterTexts.Count -eq 0) {
+            throw "Tidak ditemukan objek teks pada halaman template sertifikat di CorelDRAW."
+        }
+
+        if ($totalRows -gt 1) {
+            # Copy template shapes before replacing placeholders on Page 1
+            [void]$masterPage.Shapes.All().Copy()
+
+            # Create pages 2..N
+            for ($i = 1; $i -lt $totalRows; $i++) {
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
+                [void]$doc.ActiveLayer.Paste()
+
+                $newTexts = Get-AllTextShapes $newPage
+                Apply-RowReplacement $newTexts $rows[$i] $sortedMappings
+                if ($autoCurves) {
+                    Convert-TextsToCurves $newTexts
+                }
+            }
+        }
+
+        # Now replace Record 0 on Page 1 (Master Page)
+        $masterPage.Activate()
+        $masterTexts = Get-AllTextShapes $masterPage
+        Apply-RowReplacement $masterTexts $rows[0] $sortedMappings
+        if ($autoCurves) {
+            Convert-TextsToCurves $masterTexts
+        }
+
+        $result.count = $totalRows
+        $result.totalPages = $totalRows
+    }
+
+    try { $doc.EndCommandGroup() } catch {}
+    try { $corel.Optimization = $false } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
+    try { $corel.Refresh() } catch {}
+    try { if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() } } catch {}
+
+    $result.success = $true
+    $result.message = "Berhasil membuat $($result.count) sertifikat pada $($result.totalPages) halaman di CorelDRAW!"
+}
+catch {
+    try {
+        if ($doc) { $doc.EndCommandGroup() }
+        try { $corel.Optimization = $false } catch {}
+        try { $corel.EventsEnabled = $true } catch {}
+        try { $corel.Refresh() } catch {}
+        try { if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() } } catch {}
+    } catch {}
+    $result.success = $false
+    $result.message = "$($_.Exception.Message)"
+}
+
+$result | ConvertTo-Json -Compress
+`;
+
+    fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path],
+      { timeout: 600000 },
+      (err, stdout, stderr) => {
+        try {
+          if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+          if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
+        } catch {}
+
+        if (err && !stdout) {
+          const cleanErr = (stderr || err?.message || 'Gagal menjalankan pembuat sertifikat di CorelDRAW')
+            .replace(/Command failed:.*?\n/, '')
+            .trim();
+          resolve({ success: false, message: cleanErr || 'Gagal menjalankan pembuat sertifikat di CorelDRAW' });
           return;
         }
 
