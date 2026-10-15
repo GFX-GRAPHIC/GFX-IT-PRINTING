@@ -2025,27 +2025,29 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
       const worksheet = workbook.Sheets[sName];
       const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
       if (!rawData || rawData.length === 0) {
-        sheetsData[sName] = { headers: [], rows: [], totalRows: 0 };
+        sheetsData[sName] = { headers: [], rows: [], totalRows: 0, headerRowIdx: 0, rawData: [] };
         continue;
       }
 
-      const headerRow = rawData[0] || [];
-      const maxCols = Math.max(headerRow.length, ...rawData.map(r => (Array.isArray(r) ? r.length : 0)));
-
-      const headers = [];
-      for (let colIdx = 0; colIdx < maxCols; colIdx++) {
-        const letter = indexToLetter(colIdx);
-        const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
-        const name = rawName || `Kolom ${letter}`;
-        headers.push({
-          letter,
-          name,
-          label: `${letter}: ${name}`
-        });
+      // Auto-detect the real header row (the row in the first 10 rows with the most non-empty columns)
+      let headerRowIdx = 0;
+      let maxNonEmpty = 0;
+      const scanLimit = Math.min(10, rawData.length);
+      for (let r = 0; r < scanLimit; r++) {
+        const row = rawData[r] || [];
+        const count = row.filter(val => val !== undefined && val !== null && String(val).trim() !== '').length;
+        if (count > maxNonEmpty) {
+          maxNonEmpty = count;
+          headerRowIdx = r;
+        }
       }
 
+      const headerRow = rawData[headerRowIdx] || [];
+      const maxCols = Math.max(headerRow.length, ...rawData.map(r => (Array.isArray(r) ? r.length : 0)));
+
+      // Data rows starting AFTER the header row
       const rows = [];
-      for (let rIdx = 1; rIdx < rawData.length; rIdx++) {
+      for (let rIdx = headerRowIdx + 1; rIdx < rawData.length; rIdx++) {
         const rowValues = rawData[rIdx];
         if (!rowValues) continue;
         const hasData = rowValues.some(val => val !== undefined && val !== null && String(val).trim() !== '');
@@ -2060,14 +2062,41 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
         rows.push(rowObj);
       }
 
+      // Build rich headers with detected names and live sample data
+      const headers = [];
+      for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+        const letter = indexToLetter(colIdx);
+        const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
+        const name = rawName || `Kolom ${letter}`;
+
+        let sample = '';
+        for (const r of rows) {
+          if (r[letter] && r[letter].trim() !== '') {
+            sample = r[letter].trim();
+            if (sample.length > 25) sample = sample.substring(0, 22) + '...';
+            break;
+          }
+        }
+
+        const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
+        headers.push({
+          letter,
+          name,
+          sample,
+          label
+        });
+      }
+
       sheetsData[sName] = {
         headers,
         rows,
-        totalRows: rows.length
+        totalRows: rows.length,
+        headerRowIdx,
+        rawData
       };
     }
 
-    const primary = sheetsData[activeSheet] || { headers: [], rows: [], totalRows: 0 };
+    const primary = sheetsData[activeSheet] || { headers: [], rows: [], totalRows: 0, headerRowIdx: 0, rawData: [] };
 
     return {
       success: true,
@@ -2077,7 +2106,9 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
       sheetsData,
       headers: primary.headers,
       rows: primary.rows,
-      totalRows: primary.totalRows
+      totalRows: primary.totalRows,
+      headerRowIdx: primary.headerRowIdx,
+      rawData: primary.rawData
     };
   } catch (err) {
     console.error('[Excel Parse Error]', err);
@@ -2225,31 +2256,65 @@ try {
     # Sort mappings by placeholder length descending (e.g. A10 before A1, [NAMA_LENGKAP] before [NAMA])
     $sortedMappings = @($mappings | Sort-Object -Property @{ Expression = { $_.placeholder.Length }; Descending = $true })
 
-    # 2. Connect to CorelDRAW COM instance (Supporting CorelDRAW X7 up to 2025 seamlessly)
+    # 2. Connect to CorelDRAW COM instance (Multi-strategy connection for CorelDRAW X7 - 2025)
     $corel = $null
-    for ($v = 26; $v -ge 14; $v--) {
-        try {
-            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
-            if ($c) {
-                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
-                    $corel = $c
-                    break
-                } elseif (-not $corel) {
-                    $corel = $c
+
+    # 2a. Try CurVer ProgID from Registry
+    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+    if ($curVer) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {}
+        if (-not $corel) {
+            try { $corel = New-Object -ComObject $curVer -ErrorAction SilentlyContinue } catch {}
+        }
+    }
+
+    # 2b. Try Generic ProgID
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+        if (-not $corel) {
+            try { $corel = New-Object -ComObject "CorelDRAW.Application" -ErrorAction SilentlyContinue } catch {}
+        }
+    }
+
+    # 2c. Try loop through known version ProgIDs (26 down to 14)
+    if (-not $corel) {
+        for ($v = 26; $v -ge 14; $v--) {
+            try {
+                $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+                if ($c) {
+                    if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                        $corel = $c
+                        break
+                    } elseif (-not $corel) {
+                        $corel = $c
+                    }
                 }
+            } catch {}
+            if (-not $corel) {
+                try {
+                    $c = New-Object -ComObject "CorelDRAW.Application.$v" -ErrorAction SilentlyContinue
+                    if ($c -and ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0))) {
+                        $corel = $c
+                        break
+                    }
+                } catch {}
             }
-        } catch {}
+        }
     }
+
     if (-not $corel) {
-        try {
-            $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application")
-        } catch {}
-    }
-    if (-not $corel) {
+        $proc = Get-Process -Name 'CorelDRW','CorelDRAW' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($proc) {
+            throw "CorelDRAW terdeteksi terbuka di komputer (PID $($proc.Id)), namun Windows membatasi hak akses COM. Jika CorelDRAW dibuka dengan opsi 'Run as Administrator', jalankan juga aplikasi GFX IT PRINTING sebagai Administrator agar izinnya setara."
+        }
         throw "CorelDRAW tidak sedang berjalan. Silakan buka CorelDRAW dan dokumen template sertifikat Anda terlebih dahulu."
     }
 
-    $doc = $corel.ActiveDocument
+    $doc = $null
+    try { $doc = $corel.ActiveDocument } catch {}
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try { $doc = $corel.Documents.Item(1) } catch {}
+    }
     if (-not $doc) {
         throw "Tidak ada dokumen template yang terbuka di CorelDRAW. Buka file sertifikat Anda terlebih dahulu."
     }

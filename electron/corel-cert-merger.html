@@ -573,15 +573,23 @@
         <input type="file" id="fileExcelInput" accept=".xlsx, .xls, .csv" style="display: none;" />
 
         <!-- File Active Info -->
-        <div id="boxFileInfo" class="file-info-badge" style="display: none;">
-          <div>
-            <span style="font-weight: 700; color: #3730a3;" id="lblFileName">data_peserta.xlsx</span>
-            <span style="color: #64748b;" id="lblRowCount">(0 Baris)</span>
-          </div>
-          <div class="form-row">
-            <span style="color: #475569; font-size: 9.5px;">Sheet:</span>
-            <select id="selSheet" style="height: 22px; font-size: 10px;"></select>
+        <div id="boxFileInfo" class="file-info-badge" style="display: none; flex-direction: column; gap: 5px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div>
+              <span style="font-weight: 700; color: #3730a3;" id="lblFileName">data_peserta.xlsx</span>
+              <span style="color: #64748b;" id="lblRowCount">(0 Baris Data)</span>
+            </div>
             <button type="button" id="btnChangeFile" class="btn-secondary" style="height: 22px; font-size: 9.5px;">Ganti File</button>
+          </div>
+          <div class="form-row" style="flex-wrap: wrap; gap: 8px; border-top: 1px dashed #cbd5e1; padding-top: 4px; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="color: #475569; font-size: 9.5px; font-weight: 600;">Sheet:</span>
+              <select id="selSheet" style="height: 22px; font-size: 10px;"></select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="color: #475569; font-size: 9.5px; font-weight: 600;">Baris Judul Kolom:</span>
+              <select id="selHeaderRow" style="height: 22px; font-size: 10px; font-weight: 700; color: #3730a3;"></select>
+            </div>
           </div>
         </div>
 
@@ -755,6 +763,7 @@
     const lblFileName = document.getElementById('lblFileName');
     const lblRowCount = document.getElementById('lblRowCount');
     const selSheet = document.getElementById('selSheet');
+    const selHeaderRow = document.getElementById('selHeaderRow');
     const btnChangeFile = document.getElementById('btnChangeFile');
     const lblFileLoaded = document.getElementById('lblFileLoaded');
 
@@ -908,6 +917,102 @@
       }
     }
 
+    function autoMapVariablesFromHeaders(headers) {
+      if (!headers || headers.length === 0) return;
+
+      const nameCol = headers.find(h => /nama|peserta|name/i.test(h.name));
+      const awardCol = headers.find(h => /juara|predikat|kategori|sebagai|instrumen|award/i.test(h.name));
+      const noCol = headers.find(h => /nomor|no\.|sertifikat|kode/i.test(h.name));
+
+      excelVariables.forEach(v => {
+        const p = v.placeholder.toUpperCase();
+        const l = (v.label || '').toLowerCase();
+
+        if (p === 'A1') {
+          if (noCol && (l.includes('nomor') || l.includes('no'))) v.column = noCol.letter;
+          else if (nameCol) v.column = nameCol.letter;
+        } else if (p === 'A2') {
+          if (nameCol && (l.includes('nama') || l.includes('peserta'))) v.column = nameCol.letter;
+          else if (awardCol) v.column = awardCol.letter;
+        } else if (p === 'A3') {
+          if (awardCol && (l.includes('predikat') || l.includes('juara') || l.includes('kategori') || l.includes('sebagai'))) v.column = awardCol.letter;
+          else if (noCol) v.column = noCol.letter;
+        }
+      });
+    }
+
+    function recomputeSheetHeaders(sheetName, headerRowIdx) {
+      if (!excelData || !excelData.sheetsData) return;
+      const sheet = excelData.sheetsData[sheetName];
+      if (!sheet || !sheet.rawData || sheet.rawData.length === 0) return;
+
+      const rawData = sheet.rawData;
+      const headerRow = rawData[headerRowIdx] || [];
+      const maxCols = Math.max(headerRow.length, ...rawData.map(r => (Array.isArray(r) ? r.length : 0)));
+
+      function indexToLetter(idx) {
+        let letter = '';
+        let temp = idx;
+        while (temp >= 0) {
+          letter = String.fromCharCode((temp % 26) + 65) + letter;
+          temp = Math.floor(temp / 26) - 1;
+        }
+        return letter;
+      }
+
+      const rows = [];
+      for (let rIdx = headerRowIdx + 1; rIdx < rawData.length; rIdx++) {
+        const rowValues = rawData[rIdx];
+        if (!rowValues) continue;
+        const hasData = rowValues.some(val => val !== undefined && val !== null && String(val).trim() !== '');
+        if (!hasData) continue;
+
+        const rowObj = {};
+        for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+          const letter = indexToLetter(colIdx);
+          const cellVal = rowValues[colIdx];
+          rowObj[letter] = cellVal !== undefined && cellVal !== null ? String(cellVal).trim() : '';
+        }
+        rows.push(rowObj);
+      }
+
+      const headers = [];
+      for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+        const letter = indexToLetter(colIdx);
+        const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
+        const name = rawName || `Kolom ${letter}`;
+
+        let sample = '';
+        for (const r of rows) {
+          if (r[letter] && r[letter].trim() !== '') {
+            sample = r[letter].trim();
+            if (sample.length > 25) sample = sample.substring(0, 22) + '...';
+            break;
+          }
+        }
+
+        const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
+        headers.push({ letter, name, sample, label });
+      }
+
+      sheet.headers = headers;
+      sheet.rows = rows;
+      sheet.totalRows = rows.length;
+      sheet.headerRowIdx = headerRowIdx;
+
+      excelData.headers = headers;
+      excelData.rows = rows;
+      excelData.totalRows = rows.length;
+      excelData.headerRowIdx = headerRowIdx;
+
+      lblRowCount.innerText = `(${rows.length} Baris Data)`;
+      lblColCount.innerText = `${headers.length} Kolom`;
+
+      renderPreviewTable(headers, rows);
+      autoMapVariablesFromHeaders(headers);
+      renderExcelMappingRows();
+    }
+
     function populateExcelUI(data) {
       excelDropzone.style.display = 'none';
       boxFileInfo.style.display = 'flex';
@@ -915,7 +1020,7 @@
       lblFileLoaded.style.display = 'inline';
 
       lblFileName.innerText = data.filePath.split(/[/\\]/).pop();
-      lblRowCount.innerText = `(${data.totalRows} Baris)`;
+      lblRowCount.innerText = `(${data.totalRows} Baris Data)`;
       lblColCount.innerText = `${data.headers.length} Kolom`;
 
       // Sheets dropdown
@@ -928,9 +1033,30 @@
         selSheet.appendChild(opt);
       });
 
+      // Header row selector
+      populateHeaderRowSelector(data.headerRowIdx, data.rawData?.length || 10);
+
       renderPreviewTable(data.headers, data.rows);
+      autoMapVariablesFromHeaders(data.headers);
       renderExcelMappingRows();
     }
+
+    function populateHeaderRowSelector(activeIdx, totalRowsCount) {
+      selHeaderRow.innerHTML = '';
+      const limit = Math.min(10, Math.max(5, totalRowsCount));
+      for (let i = 0; i < limit; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.innerText = i === activeIdx ? `Baris ${i + 1} (Otomatis)` : `Baris ${i + 1}`;
+        if (i === activeIdx) opt.selected = true;
+        selHeaderRow.appendChild(opt);
+      }
+    }
+
+    selHeaderRow.addEventListener('change', () => {
+      const idx = parseInt(selHeaderRow.value, 10);
+      recomputeSheetHeaders(selSheet.value, idx);
+    });
 
     selSheet.addEventListener('change', () => {
       if (!excelData || !excelData.sheetsData) return;
@@ -941,9 +1067,13 @@
         excelData.headers = sheet.headers;
         excelData.rows = sheet.rows;
         excelData.totalRows = sheet.totalRows;
-        lblRowCount.innerText = `(${sheet.totalRows} Baris)`;
+        excelData.headerRowIdx = sheet.headerRowIdx || 0;
+        lblRowCount.innerText = `(${sheet.totalRows} Baris Data)`;
         lblColCount.innerText = `${sheet.headers.length} Kolom`;
+
+        populateHeaderRowSelector(sheet.headerRowIdx || 0, sheet.rawData?.length || 10);
         renderPreviewTable(sheet.headers, sheet.rows);
+        autoMapVariablesFromHeaders(sheet.headers);
         renderExcelMappingRows();
       }
     });
