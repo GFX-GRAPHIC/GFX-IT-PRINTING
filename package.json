@@ -87,12 +87,16 @@
       ],
       "icon": "public/favicon.ico"
     },
+    "portable": {
+      "artifactName": "${productName} ${version} Portable.${ext}"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "GFX IT PRINTING"
+      "shortcutName": "GFX IT PRINTING",
+      "artifactName": "${productName} Setup ${version}.${ext}"
     }
   }
 }
