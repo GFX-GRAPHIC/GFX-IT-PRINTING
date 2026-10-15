@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
@@ -50,8 +50,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // Certificate & Variable Data Merger APIs
   corelOpenCertMergerTool: () => ipcRenderer.invoke('corel:open-cert-merger-tool'),
-  corelParseExcelFile: (filePath) => ipcRenderer.invoke('corel:parse-excel-file', filePath),
+  corelParseExcelFile: (payload) => ipcRenderer.invoke('corel:parse-excel-file', payload),
   corelExecuteCertMerger: (payload) => ipcRenderer.invoke('corel:execute-cert-merger', payload),
+  dialogSelectExcelFile: () => ipcRenderer.invoke('dialog:select-excel-file'),
+  getPathForFile: (file) => {
+    try {
+      if (webUtils && typeof webUtils.getPathForFile === 'function') {
+        return webUtils.getPathForFile(file);
+      }
+      return file?.path || '';
+    } catch {
+      return file?.path || '';
+    }
+  },
 });
 
 

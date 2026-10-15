@@ -107,7 +107,7 @@
     }
 
     .app-title {
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -127,6 +127,45 @@
     .app-subtitle {
       font-size: 10px;
       color: #c7d2fe;
+    }
+
+    /* Source Tabs */
+    .tabs-bar {
+      display: flex;
+      background-color: #e2e8f0;
+      padding: 3px 6px;
+      gap: 4px;
+      border-bottom: 1px solid #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: #1e293b;
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .tab-btn.active {
+      background: #ffffff;
+      color: #3730a3;
+      border-color: #cbd5e1;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     /* Scrollable Container */
@@ -181,14 +220,14 @@
       border: 2px dashed #a5b4fc;
       background-color: #eef2ff;
       border-radius: 4px;
-      padding: 10px 8px;
+      padding: 12px 10px;
       text-align: center;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 3px;
+      gap: 4px;
       transition: all 0.2s;
     }
 
@@ -251,11 +290,10 @@
       border: 1px solid #cbd5e1;
       border-radius: 3px;
       padding: 0 5px;
-      font-size: 11px;
+      font-size: 10.5px;
       color: #0f172a;
       background: #ffffff;
       outline: none;
-      cursor: pointer;
     }
     select:focus {
       border-color: #4f46e5;
@@ -264,88 +302,120 @@
     .btn-secondary {
       height: 25px;
       padding: 0 8px;
-      background: #f1f5f9;
+      background: #ffffff;
       border: 1px solid #cbd5e1;
       border-radius: 3px;
-      font-size: 10.5px;
-      font-weight: 600;
       color: #334155;
+      font-size: 10px;
+      font-weight: 600;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 4px;
+      gap: 3px;
       transition: all 0.15s;
     }
     .btn-secondary:hover {
-      background: #e2e8f0;
-      color: #0f172a;
+      background: #f1f5f9;
+      border-color: #94a3b8;
     }
 
     /* Mapping Rows */
     .mapping-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
 
     .mapping-row {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      padding: 6px 8px;
       display: flex;
       align-items: center;
       gap: 6px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 3px;
+      padding: 4px 6px;
     }
 
     .mapping-idx {
       font-weight: 800;
-      color: #4f46e5;
       font-size: 10px;
-      width: 16px;
+      color: #64748b;
+      width: 18px;
+      text-align: center;
     }
 
     .mapping-arrow {
-      color: #94a3b8;
+      color: #6366f1;
       font-size: 12px;
-      flex-shrink: 0;
+      font-weight: 800;
     }
 
     .btn-delete-row {
-      width: 24px;
-      height: 24px;
       background: transparent;
-      border: 1px solid #e2e8f0;
-      border-radius: 3px;
+      border: none;
       color: #ef4444;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-size: 11px;
-      flex-shrink: 0;
+      padding: 2px 4px;
+      border-radius: 2px;
     }
     .btn-delete-row:hover {
-      background-color: #fee2e2;
-      border-color: #fca5a5;
+      background: #fee2e2;
+    }
+
+    /* Manual Variable Card */
+    .manual-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .manual-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .manual-textarea {
+      width: 100%;
+      height: 60px;
+      min-height: 48px;
+      max-height: 120px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 4px 6px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 10px;
+      color: #0f172a;
+      background: #ffffff;
+      resize: vertical;
+      line-height: 1.4;
+      white-space: pre;
+    }
+    .manual-textarea:focus {
+      border-color: #4f46e5;
+      outline: none;
+      box-shadow: 0 0 0 1px #4f46e5;
     }
 
     /* Table Preview */
     .table-container {
-      max-height: 120px;
+      max-height: 140px;
       overflow: auto;
       border: 1px solid #cbd5e1;
       border-radius: 3px;
       background: #ffffff;
-      margin-top: 4px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 10px;
-      text-align: left;
     }
 
     th {
@@ -366,7 +436,7 @@
       border-right: 1px solid #f1f5f9;
       color: #1e293b;
       white-space: nowrap;
-      max-width: 120px;
+      max-width: 140px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -394,7 +464,7 @@
 
     .btn-gas {
       flex: 1;
-      height: 36px;
+      height: 38px;
       background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
       color: #ffffff;
       border: 1px solid #3730a3;
@@ -463,84 +533,144 @@
   <!-- 2. Header Banner -->
   <div class="app-header">
     <div class="app-title">
-      <span>GENERATOR SERTIFIKAT & DATA EXCEL</span>
+      <span>GENERATOR SERTIFIKAT & DATA BEBAS</span>
       <span class="badge-vdp">MAIL MERGE</span>
     </div>
-    <div class="app-subtitle">Cetak Massal Sertifikat, Piagam, ID Card & Undangan dari Tabel Excel</div>
+    <div class="app-subtitle">Cetak Massal Sertifikat, Piagam, ID Card & Undangan dari Excel atau Teks Manual</div>
   </div>
 
-  <!-- 3. Scrollable Content -->
+  <!-- 3. Source Mode Tabs -->
+  <div class="tabs-bar">
+    <button type="button" class="tab-btn active" id="tabBtnExcel">
+      <span>📊 Impor File Excel / CSV</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabBtnManual">
+      <span>✍️ Input Manual (Paste Teks Bebas)</span>
+    </button>
+  </div>
+
+  <!-- 4. Scrollable Content -->
   <div class="main-content">
 
-    <!-- Langkah 1: Upload / Pilih Excel -->
-    <div class="section-box">
-      <div class="section-title">
-        <div>
-          <span class="step-badge">1</span>
-          <span>IMPOR DATA EXCEL (.xlsx, .xls, .csv)</span>
+    <!-- ================= MODE 1: EXCEL ================= -->
+    <div id="viewExcelMode" style="display: flex; flex-direction: column; gap: 8px;">
+
+      <!-- Langkah 1: Upload / Pilih Excel -->
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">1</span>
+            <span>PILIH FILE EXCEL (.xlsx, .xls, .csv)</span>
+          </div>
+          <span id="lblFileLoaded" style="color: #059669; font-weight: 700; font-size: 9.5px; display: none;">✓ Excel Terhubung!</span>
         </div>
-        <span id="lblFileLoaded" style="color: #059669; font-weight: 700; font-size: 9.5px; display: none;">✓ Excel Terhubung!</span>
+
+        <div class="dropzone" id="excelDropzone">
+          <div style="font-size: 20px;">📂</div>
+          <div class="dropzone-title">Klik di Sini untuk Pilih File Excel / CSV</div>
+          <div class="dropzone-desc">Atau seret (drag & drop) file .xlsx, .xls, .csv langsung ke kotak ini</div>
+        </div>
+        <input type="file" id="fileExcelInput" accept=".xlsx, .xls, .csv" style="display: none;" />
+
+        <!-- File Active Info -->
+        <div id="boxFileInfo" class="file-info-badge" style="display: none;">
+          <div>
+            <span style="font-weight: 700; color: #3730a3;" id="lblFileName">data_peserta.xlsx</span>
+            <span style="color: #64748b;" id="lblRowCount">(0 Baris)</span>
+          </div>
+          <div class="form-row">
+            <span style="color: #475569; font-size: 9.5px;">Sheet:</span>
+            <select id="selSheet" style="height: 22px; font-size: 10px;"></select>
+            <button type="button" id="btnChangeFile" class="btn-secondary" style="height: 22px; font-size: 9.5px;">Ganti File</button>
+          </div>
+        </div>
+
+        <!-- Preview Table Accordion -->
+        <div id="boxTablePreview" style="display: none; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b;">
+            <span>Pratinjau Data Excel (5 Baris Pertama):</span>
+            <span id="lblColCount"></span>
+          </div>
+          <div class="table-container">
+            <table id="tblPreview">
+              <thead id="tblHead"></thead>
+              <tbody id="tblBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <div class="dropzone" id="excelDropzone">
-        <div style="font-size: 18px;">📊</div>
-        <div class="dropzone-title">Klik di Sini atau Seret File Excel ke Sini</div>
-        <div class="dropzone-desc">Mendukung format .xlsx, .xls, atau .csv dari komputer Anda</div>
-      </div>
-      <input type="file" id="fileExcelInput" accept=".xlsx, .xls, .csv" style="display: none;" />
+      <!-- Langkah 2: Pemetaan Variabel Teks -->
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">2</span>
+            <span>PEMETAAN TEKS COREL ➔ KOLOM EXCEL</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" id="btnPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset placeholder ke A1, A2, A3">Preset: A1-A3</button>
+            <button type="button" id="btnAddVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Teks</button>
+          </div>
+        </div>
 
-      <!-- File Active Info -->
-      <div id="boxFileInfo" class="file-info-badge" style="display: none;">
-        <div>
-          <span style="font-weight: 700; color: #3730a3;" id="lblFileName">data_peserta.xlsx</span>
-          <span style="color: #64748b;" id="lblRowCount">(0 Baris)</span>
+        <div style="font-size: 9.5px; color: #64748b; line-height: 1.35;">
+          Tentukan teks placeholder di CorelDRAW (misal: <code>A1</code>), lalu pasangkan dengan kolom Excel sumber:
         </div>
-        <div class="form-row">
-          <span style="color: #475569; font-size: 9.5px;">Sheet:</span>
-          <select id="selSheet" style="height: 22px; font-size: 10px;"></select>
-          <button type="button" id="btnChangeFile" class="btn-secondary" style="height: 22px; font-size: 9.5px;">Ganti</button>
+
+        <!-- Mapping Rows Container -->
+        <div class="mapping-list" id="mappingContainer">
+          <!-- Will be populated dynamically by JS -->
         </div>
       </div>
 
-      <!-- Preview Table Accordion -->
-      <div id="boxTablePreview" style="display: none; flex-direction: column; gap: 4px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b;">
-          <span>Pratinjau Data (5 Baris Pertama):</span>
-          <span id="lblColCount"></span>
+    </div>
+
+    <!-- ================= MODE 2: MANUAL TEXT INPUT ================= -->
+    <div id="viewManualMode" style="display: none; flex-direction: column; gap: 8px;">
+
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">1</span>
+            <span>INPUT / PASTE DATA TEKS BEBAS PER VARIABEL</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" id="btnManualPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset A1, A2, A3">Preset A1-A3</button>
+            <button type="button" id="btnAddManualVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Variabel</button>
+          </div>
         </div>
-        <div class="table-container">
-          <table id="tblPreview">
-            <thead id="tblHead"></thead>
-            <tbody id="tblBody"></tbody>
+
+        <div style="font-size: 9.5px; color: #64748b; line-height: 1.35;">
+          Ketik atau <b>Paste</b> daftar nama/teks langsung di bawah ini. <b>1 Baris = 1 Sertifikat / Lembar</b>. Teks Corel (misal: <code>A1</code>) akan otomatis diganti per baris!
+        </div>
+
+        <!-- Manual Variable Cards List -->
+        <div id="manualCardsContainer" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Live Preview Table for Manual Mode -->
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">2</span>
+            <span>PRATINJAU DATA TEKS YANG AKAN DICETAK</span>
+          </div>
+          <span id="lblManualRowCount" style="color: #4338ca; font-weight: 800; font-size: 10px;">(0 Sertifikat)</span>
+        </div>
+
+        <div class="table-container" style="max-height: 150px;">
+          <table id="tblManualPreview">
+            <thead id="tblManualHead"></thead>
+            <tbody id="tblManualBody"></tbody>
           </table>
         </div>
       </div>
+
     </div>
 
-    <!-- Langkah 2: Pemetaan Variabel Teks -->
-    <div class="section-box">
-      <div class="section-title">
-        <div>
-          <span class="step-badge">2</span>
-          <span>PEMETAAN TEKS COREL ➔ KOLOM EXCEL</span>
-        </div>
-        <div style="display: flex; gap: 4px;">
-          <button type="button" id="btnPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset placeholder ke A1, A2, A3">Preset: A1, A2, A3</button>
-          <button type="button" id="btnAddVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Teks</button>
-        </div>
-      </div>
-
-      <div style="font-size: 9.5px; color: #64748b; line-height: 1.35;">
-        Ketik teks placeholder yang ada di CorelDRAW (misal: <code>A1</code>), lalu pilih kolom sumber dari file Excel:
-      </div>
-
-      <!-- Mapping Rows Container -->
-      <div class="mapping-list" id="mappingContainer">
-        <!-- Will be populated dynamically by JS -->
-      </div>
-    </div>
-
-    <!-- Langkah 3: Mode Output & Otomasi -->
+    <!-- Langkah 3: Mode Output & Otomasi (Shared) -->
     <div class="section-box">
       <div class="section-title">
         <div>
@@ -550,26 +680,26 @@
       </div>
 
       <div class="form-row">
-        <label style="width: 95px; color: #334155; font-weight: 600; flex-shrink: 0;">Metode Output:</label>
+        <span style="width: 105px; font-weight: 600; color: #334155;">Mode Output Corel:</span>
         <select id="selOutputMode" style="flex: 1;">
-          <option value="page" selected>📄 1 Sertifikat per Halaman (Otomatis Buat Hal 1..N)</option>
-          <option value="inplace">🎯 Isi pada Objek Terseleksi Saja di Halaman Aktif</option>
+          <option value="page">1 Sertifikat per Halaman (Page 1..N CorelDRAW)</option>
+          <option value="inplace">In-Place (Ganti Objek / Halaman Aktif Saja)</option>
         </select>
       </div>
 
-      <div style="border-top: 1px dashed #cbd5e1; padding-top: 5px; display: flex; flex-direction: column; gap: 5px;">
+      <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding-left: 2px;">
         <label class="checkbox-label">
           <input type="checkbox" id="chkAutoCurves" checked />
-          <span><b>Otomatis Convert ke Kurva (Ctrl+Q)</b> setelah selesai (font anti hilang)</span>
+          <span><b>Otomatis Convert ke Kurva (Ctrl+Q)</b> setelah selesai (font tidak hilang saat dicetak)</span>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" id="chkKeepStyle" checked />
-          <span>Pertahankan jenis font, ukuran, warna & alignment teks asli template</span>
+          <input type="checkbox" id="chkKeepStyle" checked disabled />
+          <span style="color: #64748b;">Pertahankan jenis font, ukuran, warna, kerning & perataan template</span>
         </label>
       </div>
     </div>
 
-    <!-- Action Group -->
+    <!-- Tombol Eksekusi -->
     <div class="action-group">
       <button type="button" class="btn-gas" id="btnExecute">
         <span>🚀 Gas Buat Sertifikat di CorelDRAW!</span>
@@ -578,23 +708,33 @@
 
   </div>
 
-  <!-- 4. Native Status Bar -->
+  <!-- 5. Status Bar -->
   <div class="statusbar">
-    <div>
+    <div style="display: flex; align-items: center;">
       <span class="status-dot" id="corelDot"></span>
-      <span id="lblCorelStatus">CorelDRAW: Memeriksa...</span>
+      <span id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</span>
     </div>
     <div id="lblActionStatus">Stat: Siap</div>
   </div>
 
   <script>
-    // State variables
-    let excelData = null;
+    // State
     let isPinned = true;
-    let variables = [
+    let activeSourceMode = 'excel'; // 'excel' or 'manual'
+    let excelData = null;
+
+    // Excel Mode Variables mapping
+    let excelVariables = [
       { placeholder: 'A1', column: 'B', label: 'Nama Peserta' },
       { placeholder: 'A2', column: 'C', label: 'Predikat / Juara' },
       { placeholder: 'A3', column: 'D', label: 'No. Sertifikat' }
+    ];
+
+    // Manual Mode Variables
+    let manualVariables = [
+      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana' },
+      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain' },
+      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026' }
     ];
 
     // Elements
@@ -602,6 +742,13 @@
     const btnMinimize = document.getElementById('btnMinimize');
     const btnClose = document.getElementById('btnClose');
 
+    // Tabs
+    const tabBtnExcel = document.getElementById('tabBtnExcel');
+    const tabBtnManual = document.getElementById('tabBtnManual');
+    const viewExcelMode = document.getElementById('viewExcelMode');
+    const viewManualMode = document.getElementById('viewManualMode');
+
+    // Excel Elements
     const excelDropzone = document.getElementById('excelDropzone');
     const fileExcelInput = document.getElementById('fileExcelInput');
     const boxFileInfo = document.getElementById('boxFileInfo');
@@ -620,9 +767,17 @@
     const btnAddVar = document.getElementById('btnAddVar');
     const btnPresetA1 = document.getElementById('btnPresetA1');
 
+    // Manual Elements
+    const manualCardsContainer = document.getElementById('manualCardsContainer');
+    const btnAddManualVar = document.getElementById('btnAddManualVar');
+    const btnManualPresetA1 = document.getElementById('btnManualPresetA1');
+    const tblManualHead = document.getElementById('tblManualHead');
+    const tblManualBody = document.getElementById('tblManualBody');
+    const lblManualRowCount = document.getElementById('lblManualRowCount');
+
+    // Execution Elements
     const selOutputMode = document.getElementById('selOutputMode');
     const chkAutoCurves = document.getElementById('chkAutoCurves');
-    const chkKeepStyle = document.getElementById('chkKeepStyle');
     const btnExecute = document.getElementById('btnExecute');
 
     const corelDot = document.getElementById('corelDot');
@@ -642,9 +797,39 @@
       }
     });
 
-    // File Drag & Drop
-    excelDropzone.addEventListener('click', () => fileExcelInput.click());
-    btnChangeFile.addEventListener('click', () => fileExcelInput.click());
+    // Tab Switching
+    tabBtnExcel.addEventListener('click', () => {
+      activeSourceMode = 'excel';
+      tabBtnExcel.classList.add('active');
+      tabBtnManual.classList.remove('active');
+      viewExcelMode.style.display = 'flex';
+      viewManualMode.style.display = 'none';
+    });
+
+    tabBtnManual.addEventListener('click', () => {
+      activeSourceMode = 'manual';
+      tabBtnManual.classList.add('active');
+      tabBtnExcel.classList.remove('active');
+      viewManualMode.style.display = 'flex';
+      viewExcelMode.style.display = 'none';
+      renderManualUI();
+    });
+
+    // File Picker Trigger (Native Dialog first, fallback to input)
+    async function triggerFilePicker() {
+      if (window.electronAPI?.dialogSelectExcelFile) {
+        const res = await window.electronAPI.dialogSelectExcelFile();
+        if (res && res.filePath) {
+          handleSelectedFile(res.filePath);
+          return;
+        }
+        if (res && res.canceled) return;
+      }
+      fileExcelInput.click();
+    }
+
+    excelDropzone.addEventListener('click', triggerFilePicker);
+    btnChangeFile.addEventListener('click', triggerFilePicker);
 
     excelDropzone.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -655,29 +840,60 @@
       e.preventDefault();
       excelDropzone.classList.remove('active');
       const file = e.dataTransfer?.files?.[0];
-      if (file) handleSelectedFile(file.path || file);
+      if (file) handleSelectedFile(file);
     });
 
     fileExcelInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
-      if (file) handleSelectedFile(file.path || file);
+      if (file) handleSelectedFile(file);
     });
 
-    // Parse Excel File via IPC
+    // Parse Excel File via IPC with Base64, Binary Buffer or Path
     async function handleSelectedFile(filePathOrFile) {
       lblActionStatus.innerText = 'Stat: Membaca file Excel...';
       try {
-        let filePath = typeof filePathOrFile === 'string' ? filePathOrFile : filePathOrFile.path;
-        if (!filePath && filePathOrFile.name) {
-          filePath = filePathOrFile.name;
+        let payload = null;
+
+        // Check if it's a File/Blob object
+        if (filePathOrFile && typeof filePathOrFile === 'object') {
+          const file = filePathOrFile;
+          let nativePath = '';
+          if (window.electronAPI?.getPathForFile) {
+            try {
+              nativePath = window.electronAPI.getPathForFile(file);
+            } catch {}
+          }
+          if (!nativePath && file.path) {
+            nativePath = file.path;
+          }
+
+          // Convert to Base64 (100% reliable across all browsers & Electron IPC)
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const res = reader.result;
+              const b64 = typeof res === 'string' ? (res.split(',')[1] || res) : '';
+              resolve(b64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          payload = {
+            base64,
+            fileName: file.name || 'data_peserta.xlsx',
+            filePath: nativePath || file.name || ''
+          };
+        } else if (typeof filePathOrFile === 'string') {
+          payload = filePathOrFile;
         }
 
         if (window.electronAPI?.corelParseExcelFile) {
-          const res = await window.electronAPI.corelParseExcelFile(filePath);
+          const res = await window.electronAPI.corelParseExcelFile(payload);
           if (res.success) {
             excelData = res;
             populateExcelUI(res);
-            lblActionStatus.innerText = `Stat: ${res.totalRows} baris data siap!`;
+            lblActionStatus.innerText = `Stat: ${res.totalRows} baris data Excel siap!`;
             return;
           } else {
             alert(`Gagal membaca Excel: ${res.message}`);
@@ -713,7 +929,7 @@
       });
 
       renderPreviewTable(data.headers, data.rows);
-      renderMappingRows();
+      renderExcelMappingRows();
     }
 
     selSheet.addEventListener('change', () => {
@@ -728,7 +944,7 @@
         lblRowCount.innerText = `(${sheet.totalRows} Baris)`;
         lblColCount.innerText = `${sheet.headers.length} Kolom`;
         renderPreviewTable(sheet.headers, sheet.rows);
-        renderMappingRows();
+        renderExcelMappingRows();
       }
     });
 
@@ -745,7 +961,7 @@
       tblHead.appendChild(trHead);
 
       const previewRows = (rows || []).slice(0, 5);
-      previewRows.forEach((r, idx) => {
+      previewRows.forEach((r) => {
         const tr = document.createElement('tr');
         headers.forEach(h => {
           const td = document.createElement('td');
@@ -756,8 +972,8 @@
       });
     }
 
-    // Render Mapping Interface
-    function renderMappingRows() {
+    // Render Mapping Interface (Excel Mode)
+    function renderExcelMappingRows() {
       mappingContainer.innerHTML = '';
 
       const headers = excelData?.headers || [
@@ -768,7 +984,7 @@
         { letter: 'E', name: 'Kolom E', label: 'E: Kolom E' }
       ];
 
-      variables.forEach((v, index) => {
+      excelVariables.forEach((v, index) => {
         const row = document.createElement('div');
         row.className = 'mapping-row';
 
@@ -795,38 +1011,192 @@
         txtPh.addEventListener('input', () => { v.placeholder = txtPh.value.trim(); });
         selCol.addEventListener('change', () => { v.column = selCol.value; });
         btnDel.addEventListener('click', () => {
-          if (variables.length <= 1) {
+          if (excelVariables.length <= 1) {
             alert('Minimal harus ada 1 variabel teks untuk diproses.');
             return;
           }
-          variables.splice(index, 1);
-          renderMappingRows();
+          excelVariables.splice(index, 1);
+          renderExcelMappingRows();
         });
 
         mappingContainer.appendChild(row);
       });
     }
 
-    // Add Variable
+    // Add Variable (Excel Mode)
     btnAddVar.addEventListener('click', () => {
-      const nextIdx = variables.length + 1;
+      const nextIdx = excelVariables.length + 1;
       const defaultCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
       const targetCol = defaultCols[nextIdx - 1] || 'A';
-      variables.push({
+      excelVariables.push({
         placeholder: `A${nextIdx}`,
         column: targetCol,
         label: `Teks ${nextIdx}`
       });
-      renderMappingRows();
+      renderExcelMappingRows();
     });
 
     btnPresetA1.addEventListener('click', () => {
-      variables = [
+      excelVariables = [
         { placeholder: 'A1', column: 'B', label: 'Nama Peserta' },
         { placeholder: 'A2', column: 'C', label: 'Predikat / Juara' },
         { placeholder: 'A3', column: 'D', label: 'No. Sertifikat' }
       ];
-      renderMappingRows();
+      renderExcelMappingRows();
+    });
+
+    // ==========================================
+    // MANUAL MODE FUNCTIONS
+    // ==========================================
+    function renderManualUI() {
+      manualCardsContainer.innerHTML = '';
+
+      manualVariables.forEach((v, index) => {
+        const card = document.createElement('div');
+        card.className = 'manual-card';
+
+        const lines = v.text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+        const lineCount = lines.length;
+
+        card.innerHTML = `
+          <div class="manual-card-header">
+            <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+              <span style="font-weight: 800; color: #4338ca; font-size: 10px;">#${index + 1}</span>
+              <span style="font-size: 9px; color: #64748b;">Teks Corel:</span>
+              <input type="text" class="input-text manual-placeholder" value="${v.placeholder}" style="width: 75px; height: 22px; font-weight: 800; color: #312e81;" placeholder="misal A1" />
+              <span style="font-size: 9px; color: #64748b; margin-left: 4px;">Label:</span>
+              <input type="text" class="input-text manual-label" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600;" placeholder="Nama / Juara / Nomor" />
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="manual-badge-lines" style="font-size: 9.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 1px 6px; border-radius: 3px; border: 1px solid #a7f3d0;">${lineCount} baris</span>
+              <button type="button" class="btn-delete-row manual-btn-delete" title="Hapus Variabel Ini">✕</button>
+            </div>
+          </div>
+          <textarea class="manual-textarea" placeholder="Paste atau ketik daftar teks di sini (1 baris = 1 sertifikat)...">${v.text}</textarea>
+        `;
+
+        const txtPh = card.querySelector('.manual-placeholder');
+        const txtLbl = card.querySelector('.manual-label');
+        const txtArea = card.querySelector('.manual-textarea');
+        const btnDel = card.querySelector('.manual-btn-delete');
+        const badgeLines = card.querySelector('.manual-badge-lines');
+
+        txtPh.addEventListener('input', () => {
+          v.placeholder = txtPh.value.trim();
+          updateManualPreviewTable();
+        });
+
+        txtLbl.addEventListener('input', () => {
+          v.label = txtLbl.value.trim();
+          updateManualPreviewTable();
+        });
+
+        txtArea.addEventListener('input', () => {
+          v.text = txtArea.value;
+          const currLines = v.text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+          badgeLines.innerText = `${currLines.length} baris`;
+          updateManualPreviewTable();
+        });
+
+        btnDel.addEventListener('click', () => {
+          if (manualVariables.length <= 1) {
+            alert('Minimal harus ada 1 variabel teks.');
+            return;
+          }
+          manualVariables.splice(index, 1);
+          renderManualUI();
+        });
+
+        manualCardsContainer.appendChild(card);
+      });
+
+      updateManualPreviewTable();
+    }
+
+    function updateManualPreviewTable() {
+      // Parse lines for each variable
+      const varLines = manualVariables.map(v => {
+        const arr = v.text.split(/\r?\n/).map(l => l.trim());
+        while (arr.length > 0 && arr[arr.length - 1] === '') {
+          arr.pop();
+        }
+        return arr;
+      });
+
+      const maxRows = Math.max(...varLines.map(arr => arr.length), 0);
+      lblManualRowCount.innerText = `(${maxRows} Data Sertifikat)`;
+
+      // Render table head
+      tblManualHead.innerHTML = '';
+      tblManualBody.innerHTML = '';
+
+      const trHead = document.createElement('tr');
+      const thNo = document.createElement('th');
+      thNo.innerText = 'No';
+      thNo.style.width = '30px';
+      trHead.appendChild(thNo);
+
+      manualVariables.forEach(v => {
+        const th = document.createElement('th');
+        th.innerText = `${v.placeholder || '??'}: ${v.label || 'Teks'}`;
+        trHead.appendChild(th);
+      });
+      tblManualHead.appendChild(trHead);
+
+      // Render rows (up to 20 for preview)
+      const previewLimit = Math.min(maxRows, 20);
+      for (let r = 0; r < previewLimit; r++) {
+        const tr = document.createElement('tr');
+        const tdNo = document.createElement('td');
+        tdNo.innerText = r + 1;
+        tdNo.style.fontWeight = 'bold';
+        tdNo.style.color = '#64748b';
+        tr.appendChild(tdNo);
+
+        manualVariables.forEach((v, idx) => {
+          const td = document.createElement('td');
+          const val = varLines[idx][r] !== undefined ? varLines[idx][r] : '';
+          td.innerText = val;
+          if (!val) {
+            td.style.backgroundColor = '#fffbeb';
+            td.style.color = '#b45309';
+            td.innerText = '(kosong)';
+          }
+          tr.appendChild(td);
+        });
+        tblManualBody.appendChild(tr);
+      }
+
+      if (maxRows > 20) {
+        const trMore = document.createElement('tr');
+        const tdMore = document.createElement('td');
+        tdMore.colSpan = manualVariables.length + 1;
+        tdMore.style.textAlign = 'center';
+        tdMore.style.color = '#64748b';
+        tdMore.style.fontStyle = 'italic';
+        tdMore.innerText = `...dan ${maxRows - 20} data lainnya`;
+        trMore.appendChild(tdMore);
+        tblManualBody.appendChild(trMore);
+      }
+    }
+
+    btnAddManualVar.addEventListener('click', () => {
+      const nextIdx = manualVariables.length + 1;
+      manualVariables.push({
+        placeholder: `A${nextIdx}`,
+        label: `Teks ${nextIdx}`,
+        text: ''
+      });
+      renderManualUI();
+    });
+
+    btnManualPresetA1.addEventListener('click', () => {
+      manualVariables = [
+        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana' },
+        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain' },
+        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026' }
+      ];
+      renderManualUI();
     });
 
     // Check CorelDRAW Connection
@@ -850,25 +1220,64 @@
 
     // Execute Certificate Merger
     btnExecute.addEventListener('click', async () => {
-      if (!excelData || !excelData.rows || excelData.rows.length === 0) {
-        alert('Silakan pilih/unggah file Excel terlebih dahulu pada Langkah 1.');
-        return;
-      }
-
-      // Validate mappings
-      const validMappings = variables.filter(v => v.placeholder.trim().length > 0);
-      if (validMappings.length === 0) {
-        alert('Tentukan minimal 1 teks placeholder CorelDRAW.');
-        return;
-      }
-
+      let finalRows = [];
+      let finalMappings = [];
       const mode = selOutputMode.value;
       const autoCurves = chkAutoCurves.checked;
-      const totalCount = excelData.rows.length;
 
+      if (activeSourceMode === 'excel') {
+        if (!excelData || !excelData.rows || excelData.rows.length === 0) {
+          alert('Silakan pilih/unggah file Excel terlebih dahulu pada Langkah 1.');
+          return;
+        }
+
+        const validMappings = excelVariables.filter(v => v.placeholder.trim().length > 0);
+        if (validMappings.length === 0) {
+          alert('Tentukan minimal 1 teks placeholder CorelDRAW.');
+          return;
+        }
+
+        finalRows = excelData.rows;
+        finalMappings = validMappings;
+      } else {
+        // Manual Mode
+        const trimmedLines = manualVariables.map(v => {
+          const arr = v.text.split(/\r?\n/).map(l => l.trim());
+          while (arr.length > 0 && arr[arr.length - 1] === '') {
+            arr.pop();
+          }
+          return arr;
+        });
+
+        const maxRows = Math.max(...trimmedLines.map(arr => arr.length), 0);
+        if (maxRows === 0) {
+          alert('Silakan ketik atau tempel (paste) data teks minimal 1 baris pada salah satu variabel.');
+          return;
+        }
+
+        for (let r = 0; r < maxRows; r++) {
+          const rowObj = {};
+          manualVariables.forEach((v, idx) => {
+            const val = trimmedLines[idx][r] !== undefined ? trimmedLines[idx][r] : '';
+            rowObj[v.placeholder.trim()] = val;
+          });
+          finalRows.push(rowObj);
+        }
+
+        finalMappings = manualVariables
+          .filter(v => v.placeholder.trim().length > 0)
+          .map(v => ({
+            placeholder: v.placeholder.trim(),
+            column: v.placeholder.trim(),
+            label: v.label.trim()
+          }));
+      }
+
+      const totalCount = finalRows.length;
       const confirmMsg = `Siap memproses ${totalCount} sertifikat ke CorelDRAW?\n\n` +
-        `- Mode: ${mode === 'page' ? '1 Sertifikat per Halaman' : 'In-Place pada Objek Terseleksi'}\n` +
-        `- Jumlah Variabel: ${validMappings.length} teks (${validMappings.map(m => `${m.placeholder}➔Kolom ${m.column}`).join(', ')})\n` +
+        `- Sumber Data: ${activeSourceMode === 'excel' ? 'File Excel' : 'Input Teks Manual'}\n` +
+        `- Mode Output: ${mode === 'page' ? '1 Sertifikat per Halaman' : 'In-Place pada Objek Terseleksi'}\n` +
+        `- Variabel: ${finalMappings.map(m => m.placeholder).join(', ')}\n` +
         `- Convert Kurva: ${autoCurves ? 'YA (Ctrl+Q)' : 'TIDAK'}\n\n` +
         `Klik OK untuk memulai!`;
 
@@ -881,8 +1290,8 @@
       try {
         if (window.electronAPI?.corelExecuteCertMerger) {
           const res = await window.electronAPI.corelExecuteCertMerger({
-            rows: excelData.rows,
-            mappings: validMappings,
+            rows: finalRows,
+            mappings: finalMappings,
             mode,
             autoCurves
           });
@@ -908,7 +1317,8 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       checkCorel();
-      renderMappingRows();
+      renderExcelMappingRows();
+      renderManualUI();
       setInterval(checkCorel, 8000);
     });
     window.addEventListener('focus', () => checkCorel());

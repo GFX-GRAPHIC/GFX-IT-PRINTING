@@ -309,10 +309,10 @@ function createCorelCertMergerWindow() {
   }
 
   corelCertMergerWindow = new BrowserWindow({
-    width: 490,
-    height: 700,
-    minWidth: 420,
-    minHeight: 580,
+    width: 560,
+    height: 730,
+    minWidth: 460,
+    minHeight: 600,
     frame: false,
     resizable: true,
     alwaysOnTop: true,
@@ -1944,32 +1944,66 @@ $result | ConvertTo-Json -Compress
 // Certificate & Variable Data Merger (Excel VDP) Handlers
 // ========================================================
 
-// 1. Parse Excel / CSV File
-ipcMain.handle('corel:parse-excel-file', async (_event, filePath) => {
+// Native File Picker Dialog for Excel
+ipcMain.handle('dialog:select-excel-file', async () => {
+  const fileResult = await dialog.showOpenDialog({
+    title: 'Pilih File Excel / CSV Data Peserta',
+    filters: [
+      { name: 'Excel / CSV Files', extensions: ['xlsx', 'xls', 'csv', 'ods'] },
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  });
+  if (fileResult.canceled || !fileResult.filePaths?.length) {
+    return { success: false, canceled: true };
+  }
+  return { success: true, filePath: fileResult.filePaths[0] };
+});
+
+// 1. Parse Excel / CSV File (Supports Base64, direct Buffer, and File Path)
+ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
   try {
     const xlsx = require('xlsx');
-    let targetPath = filePath;
-    if (!targetPath || typeof targetPath !== 'string') {
-      const fileResult = await dialog.showOpenDialog({
-        title: 'Pilih File Excel / CSV Data Peserta',
-        filters: [
-          { name: 'Excel / CSV Files', extensions: ['xlsx', 'xls', 'csv', 'ods'] },
-          { name: 'All Files', extensions: ['*'] }
-        ],
-        properties: ['openFile']
-      });
-      if (fileResult.canceled || !fileResult.filePaths?.length) {
-        return { success: false, message: 'Pemilihan file dibatalkan' };
+    let workbook = null;
+    let targetPath = 'Data Peserta';
+
+    if (payload && payload.base64) {
+      // Direct base64 string from frontend FileReader (100% immune to OS path/permission issues)
+      const buf = Buffer.from(payload.base64, 'base64');
+      workbook = xlsx.read(buf, { type: 'buffer' });
+      targetPath = payload.fileName || payload.filePath || 'Data Peserta (Excel)';
+    } else if (payload && payload.buffer) {
+      // Direct binary buffer passed from frontend
+      const buf = Buffer.isBuffer(payload.buffer) ? payload.buffer : Buffer.from(payload.buffer);
+      workbook = xlsx.read(buf, { type: 'buffer' });
+      targetPath = payload.fileName || payload.filePath || 'Data Peserta (Excel)';
+    } else {
+      let filePath = typeof payload === 'string' ? payload : payload?.filePath;
+      if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) {
+        // Fallback: show native file selection dialog if path was missing/invalid
+        const fileResult = await dialog.showOpenDialog({
+          title: 'Pilih File Excel / CSV Data Peserta',
+          filters: [
+            { name: 'Excel / CSV Files', extensions: ['xlsx', 'xls', 'csv', 'ods'] },
+            { name: 'All Files', extensions: ['*'] }
+          ],
+          properties: ['openFile']
+        });
+        if (fileResult.canceled || !fileResult.filePaths?.length) {
+          return { success: false, message: 'Pemilihan file dibatalkan' };
+        }
+        filePath = fileResult.filePaths[0];
       }
-      targetPath = fileResult.filePaths[0];
+
+      if (!fs.existsSync(filePath)) {
+        return { success: false, message: 'File Excel tidak ditemukan pada komputer.' };
+      }
+
+      workbook = xlsx.readFile(filePath, { type: 'file' });
+      targetPath = filePath;
     }
 
-    if (!fs.existsSync(targetPath)) {
-      return { success: false, message: 'File Excel tidak ditemukan pada komputer.' };
-    }
-
-    const workbook = xlsx.readFile(targetPath, { type: 'file' });
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
       return { success: false, message: 'File Excel tidak memiliki lembar kerja (worksheet).' };
     }
 
