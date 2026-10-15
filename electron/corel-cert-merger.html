@@ -689,20 +689,62 @@
 
       <div class="form-row">
         <span style="width: 105px; font-weight: 600; color: #334155;">Mode Output Corel:</span>
-        <select id="selOutputMode" style="flex: 1;">
-          <option value="page">1 Sertifikat per Halaman (Page 1..N CorelDRAW)</option>
-          <option value="inplace">In-Place (Ganti Objek / Halaman Aktif Saja)</option>
+        <select id="selOutputMode" style="flex: 1; font-weight: 600; color: #334155;">
+          <option value="page" selected>📄 1 Sertifikat per Halaman (Page 1..N CorelDRAW)</option>
+          <option value="grid">▦ Tata Grid / N-Up (Banyak Desain per Lembar Cetak)</option>
+          <option value="inplace">🎯 In-Place (Ganti Objek / Halaman Aktif Saja)</option>
         </select>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding-left: 2px;">
+      <!-- N-Up Grid Settings (Shown when grid is selected) -->
+      <div id="boxGridSettings" style="display: none; flex-direction: column; gap: 6px; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 6px;">
+        <div style="font-size: 10px; font-weight: 700; color: #4338ca; display: flex; align-items: center; gap: 4px;">
+          <span>▦ PENGATURAN GRID / N-UP (SUSUN KE SAMPING &amp; KE BAWAH)</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 10px; font-weight: 700; color: #334155;">Kolom (Ke Samping):</label>
+            <input type="number" id="numGridCols" value="2" min="1" max="50" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 10px; font-weight: 700; color: #334155;">Baris (Ke Bawah):</label>
+            <input type="number" id="numGridRows" value="5" min="1" max="50" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 10px; font-weight: 700; color: #334155;">Jarak X (cm):</label>
+            <input type="number" id="numSpacingX" value="0.5" step="0.1" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 10px; font-weight: 700; color: #334155;">Jarak Y (cm):</label>
+            <input type="number" id="numSpacingY" value="0.5" step="0.1" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <label style="font-size: 10px; font-weight: 700; color: #334155;">Urutan Penataan Cetak:</label>
+          <select id="selGridOrder" style="height: 24px; font-size: 10.5px; border: 1px solid #cbd5e1; border-radius: 3px;">
+            <option value="left_right" selected>➡️ Kiri ke Kanan lalu ke Bawah (Standar ID Card/Sertifikat)</option>
+            <option value="cut_stack">✂️ Cut &amp; Stack (Tumpuk-Potong untuk Kupon / Tiket Berurutan)</option>
+          </select>
+        </div>
+
+        <div id="lblGridSummary" style="font-size: 10px; color: #3730a3; font-weight: 700; background: #e0e7ff; padding: 5px 8px; border-radius: 3px; border: 1px dashed #6366f1; line-height: 1.4;">
+          📐 <b>2 Kolom × 5 Baris = 10 Desain per Lembar</b>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-left: 2px;">
         <label class="checkbox-label">
           <input type="checkbox" id="chkAutoCurves" checked />
           <span><b>Otomatis Convert ke Kurva (Ctrl+Q)</b> setelah selesai (font tidak hilang saat dicetak)</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="chkKeepStyle" checked disabled />
-          <span style="color: #64748b;">Pertahankan jenis font, ukuran, warna, kerning & perataan template</span>
+          <span style="color: #64748b;">Pertahankan jenis font, ukuran, warna, kerning &amp; perataan template</span>
         </label>
       </div>
     </div>
@@ -786,12 +828,63 @@
 
     // Execution Elements
     const selOutputMode = document.getElementById('selOutputMode');
+    const boxGridSettings = document.getElementById('boxGridSettings');
+    const numGridCols = document.getElementById('numGridCols');
+    const numGridRows = document.getElementById('numGridRows');
+    const numSpacingX = document.getElementById('numSpacingX');
+    const numSpacingY = document.getElementById('numSpacingY');
+    const selGridOrder = document.getElementById('selGridOrder');
+    const lblGridSummary = document.getElementById('lblGridSummary');
+
     const chkAutoCurves = document.getElementById('chkAutoCurves');
     const btnExecute = document.getElementById('btnExecute');
 
     const corelDot = document.getElementById('corelDot');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
     const lblActionStatus = document.getElementById('lblActionStatus');
+
+    function getActiveTotalCount() {
+      if (activeSourceMode === 'excel') {
+        return excelData?.rows?.length || 0;
+      } else {
+        const trimmedLines = manualVariables.map(v => {
+          const arr = (v.text || '').split(/\r?\n/).map(l => l.trim());
+          while (arr.length > 0 && arr[arr.length - 1] === '') arr.pop();
+          return arr;
+        });
+        return Math.max(...trimmedLines.map(arr => arr.length), 0);
+      }
+    }
+
+    function updateGridSummary() {
+      if (!lblGridSummary) return;
+      const c = parseInt(numGridCols?.value, 10) || 1;
+      const r = parseInt(numGridRows?.value, 10) || 1;
+      const perSheet = c * r;
+      const totalCount = getActiveTotalCount();
+      const totalSheets = totalCount > 0 ? Math.ceil(totalCount / perSheet) : 1;
+
+      lblGridSummary.innerHTML = `📐 <b>${c} Kolom × ${r} Baris = ${perSheet} Desain per Lembar</b>` +
+        (totalCount > 0 ? ` &bull; Total ${totalCount} data = <b>${totalSheets} Lembar Cetak</b> di CorelDRAW` : '');
+    }
+
+    selOutputMode.addEventListener('change', () => {
+      const mode = selOutputMode.value;
+      if (mode === 'grid') {
+        boxGridSettings.style.display = 'flex';
+        btnExecute.innerHTML = '<span>🚀 Gas Susun Grid di CorelDRAW!</span>';
+      } else if (mode === 'inplace') {
+        boxGridSettings.style.display = 'none';
+        btnExecute.innerHTML = '<span>🚀 Gas Ganti Teks In-Place di CorelDRAW!</span>';
+      } else {
+        boxGridSettings.style.display = 'none';
+        btnExecute.innerHTML = '<span>🚀 Gas Buat Sertifikat di CorelDRAW!</span>';
+      }
+      updateGridSummary();
+    });
+
+    numGridCols.addEventListener('input', updateGridSummary);
+    numGridRows.addEventListener('input', updateGridSummary);
 
     // Titlebar Actions
     btnMinimize.addEventListener('click', () => {
@@ -813,6 +906,7 @@
       tabBtnManual.classList.remove('active');
       viewExcelMode.style.display = 'flex';
       viewManualMode.style.display = 'none';
+      updateGridSummary();
     });
 
     tabBtnManual.addEventListener('click', () => {
@@ -822,6 +916,7 @@
       viewManualMode.style.display = 'flex';
       viewExcelMode.style.display = 'none';
       renderManualUI();
+      updateGridSummary();
     });
 
     // File Picker Trigger (Native Dialog first, fallback to input)
@@ -1011,6 +1106,7 @@
       renderPreviewTable(headers, rows);
       autoMapVariablesFromHeaders(headers);
       renderExcelMappingRows();
+      updateGridSummary();
     }
 
     function populateExcelUI(data) {
@@ -1039,6 +1135,7 @@
       renderPreviewTable(data.headers, data.rows);
       autoMapVariablesFromHeaders(data.headers);
       renderExcelMappingRows();
+      updateGridSummary();
     }
 
     function populateHeaderRowSelector(activeIdx, totalRowsCount) {
@@ -1308,6 +1405,8 @@
         trMore.appendChild(tdMore);
         tblManualBody.appendChild(trMore);
       }
+
+      updateGridSummary();
     }
 
     btnAddManualVar.addEventListener('click', () => {
@@ -1354,6 +1453,11 @@
       let finalMappings = [];
       const mode = selOutputMode.value;
       const autoCurves = chkAutoCurves.checked;
+      const cols = parseInt(numGridCols?.value, 10) || 2;
+      const gridRows = parseInt(numGridRows?.value, 10) || 5;
+      const spacingX = parseFloat(numSpacingX?.value) >= 0 ? parseFloat(numSpacingX.value) : 0.5;
+      const spacingY = parseFloat(numSpacingY?.value) >= 0 ? parseFloat(numSpacingY.value) : 0.5;
+      const gridOrder = selGridOrder?.value || 'left_right';
 
       if (activeSourceMode === 'excel') {
         if (!excelData || !excelData.rows || excelData.rows.length === 0) {
@@ -1404,18 +1508,28 @@
       }
 
       const totalCount = finalRows.length;
-      const confirmMsg = `Siap memproses ${totalCount} sertifikat ke CorelDRAW?\n\n` +
+      let modeText = '1 Sertifikat per Halaman (Page 1..N)';
+      if (mode === 'grid') {
+        const perSheet = cols * gridRows;
+        const totalSheets = Math.ceil(totalCount / perSheet);
+        const orderText = gridOrder === 'cut_stack' ? 'Cut & Stack' : 'Kiri ke Kanan';
+        modeText = `Tata Grid / N-Up ${cols} Kolom × ${gridRows} Baris (${perSheet} Desain/Lembar, Total ~${totalSheets} Lembar Cetak, Urutan: ${orderText})`;
+      } else if (mode === 'inplace') {
+        modeText = 'In-Place pada Objek Terseleksi Saja';
+      }
+
+      const confirmMsg = `Siap memproses ${totalCount} data ke CorelDRAW?\n\n` +
         `- Sumber Data: ${activeSourceMode === 'excel' ? 'File Excel' : 'Input Teks Manual'}\n` +
-        `- Mode Output: ${mode === 'page' ? '1 Sertifikat per Halaman' : 'In-Place pada Objek Terseleksi'}\n` +
-        `- Variabel: ${finalMappings.map(m => m.placeholder).join(', ')}\n` +
+        `- Mode Output: ${modeText}\n` +
+        `- Variabel Teks: ${finalMappings.map(m => m.placeholder).join(', ')}\n` +
         `- Convert Kurva: ${autoCurves ? 'YA (Ctrl+Q)' : 'TIDAK'}\n\n` +
         `Klik OK untuk memulai!`;
 
       if (!confirm(confirmMsg)) return;
 
       btnExecute.disabled = true;
-      btnExecute.innerText = 'Sedang Membuat Sertifikat di CorelDRAW...';
-      lblActionStatus.innerText = `Stat: Memproses ${totalCount} sertifikat...`;
+      btnExecute.innerText = 'Sedang Memproses di CorelDRAW...';
+      lblActionStatus.innerText = `Stat: Memproses ${totalCount} data ke CorelDRAW...`;
 
       try {
         if (window.electronAPI?.corelExecuteCertMerger) {
@@ -1423,15 +1537,20 @@
             rows: finalRows,
             mappings: finalMappings,
             mode,
-            autoCurves
+            autoCurves,
+            cols,
+            gridRows,
+            spacingX,
+            spacingY,
+            gridOrder
           });
 
           if (res.success) {
-            lblActionStatus.innerText = `Stat: Berhasil (${res.count} sertifikat dibuat)!`;
-            alert(`🎉 SUKSES!\n\n${res.message || `Berhasil membuat ${res.count} sertifikat di CorelDRAW!`}`);
+            lblActionStatus.innerText = `Stat: Berhasil (${res.count} data selesai)!`;
+            alert(`🎉 SUKSES!\n\n${res.message || `Berhasil memproses ${res.count} data di CorelDRAW!`}`);
           } else {
             lblActionStatus.innerText = 'Stat: Gagal memproses';
-            alert(`Gagal membuat sertifikat:\n\n${res.message}`);
+            alert(`Gagal memproses di CorelDRAW:\n\n${res.message}`);
           }
         } else {
           alert('Fitur automasi CorelDRAW hanya dapat berjalan di aplikasi desktop.');
@@ -1441,7 +1560,13 @@
         alert(`Error eksekusi: ${err.message}`);
       } finally {
         btnExecute.disabled = false;
-        btnExecute.innerText = '🚀 Gas Buat Sertifikat di CorelDRAW!';
+        if (mode === 'grid') {
+          btnExecute.innerHTML = '<span>🚀 Gas Susun Grid di CorelDRAW!</span>';
+        } else if (mode === 'inplace') {
+          btnExecute.innerHTML = '<span>🚀 Gas Ganti Teks In-Place di CorelDRAW!</span>';
+        } else {
+          btnExecute.innerHTML = '<span>🚀 Gas Buat Sertifikat di CorelDRAW!</span>';
+        }
       }
     });
 

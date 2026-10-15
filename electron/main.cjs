@@ -2124,6 +2124,11 @@ ipcMain.handle('corel:execute-cert-merger', async (_event, payload) => {
       mappings = [],
       mode = 'page',
       autoCurves = true,
+      cols = 2,
+      gridRows = 5,
+      spacingX = 0.5,
+      spacingY = 0.5,
+      gridOrder = 'left_right',
     } = payload || {};
 
     if (!rows || rows.length === 0) {
@@ -2139,7 +2144,21 @@ ipcMain.handle('corel:execute-cert-merger', async (_event, payload) => {
     const tempPs1Path = path.join(tempDir, `corel_cert_${timestamp}.ps1`);
 
     try {
-      fs.writeFileSync(tempJsonPath, JSON.stringify({ rows, mappings, mode, autoCurves }), 'utf-8');
+      fs.writeFileSync(
+        tempJsonPath,
+        JSON.stringify({
+          rows,
+          mappings,
+          mode,
+          autoCurves,
+          cols: Number(cols) || 2,
+          gridRows: Number(gridRows) || 5,
+          spacingX: Number(spacingX) >= 0 ? Number(spacingX) : 0.5,
+          spacingY: Number(spacingY) >= 0 ? Number(spacingY) : 0.5,
+          gridOrder: gridOrder || 'left_right'
+        }),
+        'utf-8'
+      );
     } catch (err) {
       return resolve({ success: false, message: `Gagal menyiapkan file data: ${err.message}` });
     }
@@ -2158,6 +2177,21 @@ trap {
     }
     $res | ConvertTo-Json -Compress
     exit 0
+}
+
+function Get-RangeCount($r) {
+    if (-not $r) { return 0 }
+    try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+    try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+    return 0
+}
+
+function Get-RangeItem($r, [int]$idx) {
+    if (-not $r) { return $null }
+    try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+    try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+    try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+    return $null
 }
 
 # Helper function: Replace text in shape case-insensitively
@@ -2237,7 +2271,7 @@ function Convert-TextsToCurves($textList) {
         try {
             $t = $textList[$k]
             if ($t -and $t.Type -eq 6) {
-                [void]$t.CreateCurves()
+                try { [void]$t.ConvertToCurves() } catch { try { [void]$t.CreateCurves() } catch {} }
             }
         } catch {}
     }
@@ -2252,6 +2286,11 @@ try {
     $mappings = $data.mappings
     $mode = [string]$data.mode
     $autoCurves = [bool]$data.autoCurves
+    $cols = if ($data.cols) { [int]$data.cols } else { 2 }
+    $gridRows = if ($data.gridRows) { [int]$data.gridRows } else { 5 }
+    $spacingX = if ($null -ne $data.spacingX) { [double]$data.spacingX } else { 0.5 }
+    $spacingY = if ($null -ne $data.spacingY) { [double]$data.spacingY } else { 0.5 }
+    $gridOrder = if ($data.gridOrder) { [string]$data.gridOrder } else { 'left_right' }
 
     # Sort mappings by placeholder length descending (e.g. A10 before A1, [NAMA_LENGKAP] before [NAMA])
     $sortedMappings = @($mappings | Sort-Object -Property @{ Expression = { $_.placeholder.Length }; Descending = $true })
@@ -2352,6 +2391,135 @@ try {
         $result.count = 1
         $result.totalPages = 1
     }
+    elseif ($mode -eq 'grid') {
+        $doc.Unit = 3 # cdrCentimeter
+
+        $sel = $null
+        try { $sel = $corel.ActiveSelection } catch {}
+        if (-not $sel -or (Get-RangeCount $sel) -eq 0) {
+            try { $sel = $doc.Selection } catch {}
+        }
+        $selCount = Get-RangeCount $sel
+
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
+        $masterPage.Activate()
+
+        $masterShape = $null
+        if ($selCount -gt 1) {
+            $masterShape = $sel.Group()
+        } elseif ($selCount -eq 1) {
+            $masterShape = Get-RangeItem $sel 1
+        } else {
+            if ($masterPage.Shapes.Count -eq 0) {
+                throw "Dokumen CorelDRAW masih kosong. Silakan buka desain sertifikat/voucher atau seleksi objek master terlebih dahulu."
+            }
+            if ($masterPage.Shapes.Count -gt 1) {
+                $masterShape = $masterPage.Shapes.All().Group()
+            } else {
+                $masterShape = $masterPage.Shapes.Item(1)
+            }
+        }
+
+        if (-not $masterShape) {
+            throw "Gagal mendapatkan objek desain master di CorelDRAW."
+        }
+
+        $initialTexts = Get-AllTextShapes $masterShape
+        if ($initialTexts.Count -eq 0) {
+            throw "Tidak ditemukan objek teks placeholder pada objek master di CorelDRAW."
+        }
+
+        $w = [double]$masterShape.SizeWidth
+        $h = [double]$masterShape.SizeHeight
+        $origX = [double]$masterShape.PositionX
+        $origY = [double]$masterShape.PositionY
+
+        $perPage = [int]($cols * $gridRows)
+        if ($perPage -lt 1) { $perPage = 1 }
+        $totalPages = [int][math]::Ceiling($totalRows / $perPage)
+
+        # 1. Tata susunan grid lengkap di Halaman 1 selagi placeholder masih utuh
+        $page1Shapes = @()
+        for ($r = 0; $r -lt $gridRows; $r++) {
+            for ($c = 0; $c -lt $cols; $c++) {
+                $targetPosX = $origX + ($c * ($w + $spacingX))
+                $targetPosY = $origY - ($r * ($h + $spacingY))
+
+                if ($r -eq 0 -and $c -eq 0) {
+                    $masterShape.PositionX = $targetPosX
+                    $masterShape.PositionY = $targetPosY
+                    $page1Shapes += $masterShape
+                } else {
+                    $dup = $masterShape.Duplicate()
+                    $dup.PositionX = $targetPosX
+                    $dup.PositionY = $targetPosY
+                    $page1Shapes += $dup
+                }
+            }
+        }
+
+        # 2. Jika total data memerlukan lebih dari 1 halaman, copy susunan grid Page 1 ke Halaman 2..N
+        if ($totalPages -gt 1) {
+            $masterPage.Activate()
+            [void]$masterPage.Shapes.All().Copy()
+
+            for ($p = 2; $p -le $totalPages; $p++) {
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
+                $pIdx = $p - 1
+
+                [void]$doc.ActiveLayer.Paste()
+
+                $newShapes = @()
+                for ($k = 1; $k -le $newPage.Shapes.Count; $k++) {
+                    $shp = $newPage.Shapes.Item($k)
+                    $newShapes += [PSCustomObject]@{
+                        Shape = $shp
+                        PosX = [double]$shp.PositionX
+                        PosY = [double]$shp.PositionY
+                        Height = [double]$shp.SizeHeight
+                    }
+                }
+
+                $rowTol = [math]::Max(0.2, $h * 0.35)
+                $sortedVouchers = $newShapes | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false }
+
+                for ($s = 0; $s -lt $sortedVouchers.Count; $s++) {
+                    $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
+                    if ($itemIdx -lt $totalRows) {
+                        $voucherShape = $sortedVouchers[$s].Shape
+                        $shpTexts = Get-AllTextShapes $voucherShape
+                        Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings
+                        if ($autoCurves) {
+                            Convert-TextsToCurves $shpTexts
+                        }
+                    } else {
+                        try { $sortedVouchers[$s].Shape.Delete() } catch {}
+                    }
+                }
+            }
+        }
+
+        # 3. Sekarang kembali ke Halaman 1 dan isi teks untuk Record Halaman 1
+        $masterPage.Activate()
+        for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
+            $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
+            if ($itemIdx -lt $totalRows) {
+                $voucherShape = $page1Shapes[$s]
+                $shpTexts = Get-AllTextShapes $voucherShape
+                Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings
+                if ($autoCurves) {
+                    Convert-TextsToCurves $shpTexts
+                }
+            } else {
+                try { $page1Shapes[$s].Delete() } catch {}
+            }
+        }
+
+        $result.count = $totalRows
+        $result.totalPages = $totalPages
+    }
     else {
         # MODE PAGE: 1 certificate per page
         $masterPage = $doc.ActivePage
@@ -2404,7 +2572,13 @@ try {
     try { if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() } } catch {}
 
     $result.success = $true
-    $result.message = "Berhasil membuat $($result.count) sertifikat pada $($result.totalPages) halaman di CorelDRAW!"
+    if ($mode -eq 'grid') {
+        $result.message = "Berhasil menata $($result.count) desain dalam Grid $cols x $gridRows pada $($result.totalPages) lembar cetak di CorelDRAW!"
+    } elseif ($mode -eq 'inplace') {
+        $result.message = "Berhasil mengganti data teks pada objek aktif di CorelDRAW!"
+    } else {
+        $result.message = "Berhasil membuat $($result.count) sertifikat pada $($result.totalPages) halaman di CorelDRAW!"
+    }
 }
 catch {
     try {
